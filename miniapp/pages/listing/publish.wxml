@@ -1,0 +1,170 @@
+<view class="page page-with-bar">
+
+  <!-- 第一步：选择教材 -->
+  <view class="card">
+    <view class="step-head">
+      <text class="step-no">1</text>
+      <text class="step-title">选择教材</text>
+      <text class="step-link" bindtap="goMyListings">我的书架 ›</text>
+    </view>
+
+    <block wx:if="{{!selected}}">
+      <view class="scan-box" bindtap="onScan">
+        <view class="scan-ico">▣</view>
+        <view class="scan-text">
+          <view class="scan-title">扫书背 ISBN 条码</view>
+          <view class="scan-sub">自动匹配教材信息，省去手输</view>
+        </view>
+      </view>
+
+      <view class="search-box">
+        <input
+          class="search-input"
+          value="{{keyword}}"
+          placeholder="或手动输入书名 / 作者 / ISBN"
+          placeholder-class="ph"
+          confirm-type="search"
+          bindinput="onKeyword"
+          bindconfirm="onSearch"
+        />
+        <view class="search-btn" bindtap="onSearch">搜索</view>
+      </view>
+
+      <view class="search-hint" wx:if="{{searching}}">正在检索教材库…</view>
+
+      <view class="book-list" wx:if="{{textbooks.length > 0}}">
+        <view class="book-item" wx:for="{{textbooks}}" wx:key="id" bindtap="onSelectBook" data-index="{{index}}">
+          <view class="book-item-main">
+            <view class="book-item-title">{{item.title}}</view>
+            <view class="book-item-meta">{{item.publisher}} · {{item.edition}} · 定价 ¥{{item.priceText}}</view>
+            <view class="book-item-isbn">ISBN {{item.isbn13}}</view>
+          </view>
+          <view class="book-item-tag" wx:if="{{item.bindType === 'REQUIRED'}}">本校指定</view>
+        </view>
+      </view>
+
+      <view class="search-empty" wx:if="{{searched && !searching && textbooks.length === 0}}">
+        没搜到这本教材，换个关键词，或扫书背条码再试
+      </view>
+    </block>
+
+    <!-- 已选教材 -->
+    <view class="picked" wx:if="{{selected}}">
+      <view class="picked-main">
+        <view class="picked-title">{{selected.title}}</view>
+        <view class="picked-meta">{{selected.author}} · {{selected.publisher}}</view>
+        <view class="picked-tags">
+          <text class="tag tag-gold" wx:if="{{selected.bindType === 'REQUIRED'}}">本校指定 · {{selected.edition}}</text>
+          <text class="tag tag-gray" wx:else>{{selected.edition}}</text>
+          <text class="tag tag-gray" wx:if="{{courseName}}">{{courseName}}</text>
+        </view>
+        <view class="picked-price">定价 ¥{{selected.priceText}}</view>
+      </view>
+      <view class="picked-change" bindtap="changeTextbook">更换</view>
+    </view>
+  </view>
+
+  <!-- 第二步：品相与价格 -->
+  <block wx:if="{{selected}}">
+    <view class="card">
+      <view class="step-head">
+        <text class="step-no">2</text>
+        <text class="step-title">品相与价格</text>
+      </view>
+
+      <view class="sub-label">品相</view>
+      <view class="chip-wrap">
+        <view
+          class="chip {{conditionLevel === item.value ? 'chip-on' : ''}}"
+          wx:for="{{conditionList}}"
+          wx:key="value"
+          bindtap="onCondition"
+          data-value="{{item.value}}"
+        >{{item.label}}</view>
+      </view>
+      <view class="sub-tip">{{conditionText}}：{{selected.edition}}，买家会按品相判断是否值得跑一趟</view>
+
+      <view class="price-line">
+        <text class="sub-label">售价</text>
+        <view class="price-input-box">
+          <text class="price-prefix">¥</text>
+          <input
+            class="price-input"
+            type="digit"
+            value="{{price}}"
+            placeholder="0.00"
+            placeholder-class="ph"
+            bindinput="onPrice"
+          />
+        </view>
+        <view class="suggest-btn {{suggestPrice ? '' : 'suggest-btn-off'}}" bindtap="useSuggest">
+          用建议价 {{suggestPrice ? '¥' + suggestPrice : '--'}}
+        </view>
+      </view>
+
+      <view class="index-card" wx:if="{{priceRange}}">
+        <text class="index-ico">◷</text>
+        <text class="index-text">{{priceRange}}</text>
+      </view>
+      <view class="index-card index-card-plain" wx:else>
+        <text class="index-ico">◷</text>
+        <text class="index-text">同款暂无在售，建议按定价的 3-5 折上架更容易出手</text>
+      </view>
+    </view>
+
+    <view class="card">
+      <view class="step-head">
+        <text class="step-no">3</text>
+        <text class="step-title">补充说明</text>
+      </view>
+
+      <view class="field">
+        <view class="field-label">书况描述（笔记 / 缺页 / 赠品）</view>
+        <textarea
+          class="field-textarea"
+          value="{{description}}"
+          maxlength="200"
+          placeholder="例如：前两章有铅笔笔记，可擦除，附赠手写公式总结"
+          placeholder-class="ph"
+          bindinput="onDesc"
+        ></textarea>
+      </view>
+
+      <view class="field">
+        <view class="field-label">面交宿舍（同校优先）</view>
+        <input
+          class="field-input"
+          value="{{dorm}}"
+          placeholder="例如：3号楼302"
+          placeholder-class="ph"
+          bindinput="onDorm"
+        />
+      </view>
+
+      <view class="notice">
+        <text class="notice-tag">提示</text>
+        <text class="notice-text">上架后买家支付即锁定库存，到自提点核销后 T+1 结算给你。</text>
+      </view>
+    </view>
+  </block>
+
+  <!-- 未选教材时的占位说明 -->
+  <view class="placeholder" wx:if="{{!selected}}">
+    <view class="placeholder-title">还没有选择教材</view>
+    <view class="placeholder-sub">先扫书背条码或搜索书名，选好教材后再填品相和价格</view>
+  </view>
+
+  <!-- 底部提交 -->
+  <view class="bottom-bar">
+    <view class="bottom-bar-inner">
+      <view class="bar-info">
+        <text class="bar-label">售价</text>
+        <text class="bar-value">¥{{price || '0.00'}}</text>
+      </view>
+      <view class="btn btn-primary bar-submit {{canSubmit && !submitting ? '' : 'btn-disabled'}}" bindtap="onSubmit">
+        {{submitting ? '提交中…' : '确认上架'}}
+      </view>
+    </view>
+  </view>
+
+</view>

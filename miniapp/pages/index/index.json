@@ -1,0 +1,10 @@
+{
+  "navigationBarTitleText": "同窗书",
+  "enablePullDownRefresh": true,
+  "onReachBottomDistance": 100,
+  "backgroundTextStyle": "dark",
+  "usingComponents": {
+    "book-card": "/components/book-card/book-card",
+    "empty": "/components/empty/empty"
+  }
+}

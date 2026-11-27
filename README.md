@@ -1,2 +1,172 @@
-# second-hand_bookstore
-For circulating second-hand books on campus
+# 同窗书 · 校园教材循环平台
+
+> 基于 Spring Boot 3 + Vue 3 + 微信小程序的校园二手教材循环平台
+> —— 要解决的一句话问题是：**"老师说的到底是哪一版，我手上这本书有没有人要？"**
+
+![status](https://img.shields.io/badge/build-passing-brightgreen)
+![java](https://img.shields.io/badge/Java-17-blue)
+![spring](https://img.shields.io/badge/Spring%20Boot-3.2.5-6DB33F)
+![mysql](https://img.shields.io/badge/MySQL-8.0-4479A1)
+![license](https://img.shields.io/badge/license-MIT-black)
+
+## 这是什么
+
+一套完整的校园教材循环系统，围绕「**课程 → 指定教材 → 二手书供给 → 担保交易 → 自提核销**」的主链路，
+把校园里零散的"学长学姐卖书 / 班委统一收书"变成可检索、可信任、可结算的闭环。
+
+三端三角色：
+
+| 端 | 使用者 | 目录 | 技术 |
+| --- | --- | --- | --- |
+| 小程序 | 学生（买家/卖家/团长） | `miniapp/` | 原生微信小程序（WXML/WXSS/JS） |
+| 管理后台 | 运营/教务处 | `admin/` | Vue 3 + Vite + Element Plus + ECharts |
+| 服务端 | —— | `server/` | Spring Boot 3.2.5 + MyBatis-Plus + JWT |
+
+## 八个模块
+
+1. **用户与认证**：手机号注册 / 微信一键登录（`/v1/auth/wechat`，dev 用 code 模拟）、JWT、RBAC 四角色
+   （STUDENT / LEADER 团长 / CLERK 自提点店员 / ADMIN）、学号实名走"提交 → PENDING → 审核"。
+2. **课程—教材知识库**：课程库 + 教材主数据（ISBN-13 维度，一版一条）+ 课程教材映射（REQUIRED/REFERENCE），
+   从根上解决"第几版"的歧义。
+3. **商品发布与品相**：选教材 → 定价 → 五档品相（NEW/LIKE_NEW/GOOD/FAIR/POOR）→ 多图，
+   并给出**同教材成交价指数**（最低/最高/均价/建议价），让定价有据可依。
+4. **检索匹配与推荐**：按课程/教材/关键词/品相检索，四种排序（最新、价格升、价格降、热度）；
+   推荐走"收藏 + 成交过的同课程"召回，冷启动兜底热门。
+5. **订单与担保交易**：`PENDING_PAY → FROZEN → WAIT_VERIFY → VERIFIED → SETTLED` 状态机，
+   下单即锁商品（条件更新防超卖）、幂等表防重复提交、15 分钟未支付自动关单（`@Scheduled`）、退款释放库存。
+6. **自提点与核销**：自提点带经纬度（Haversine 算距离）、货位容量；
+   线下交付用 **HMAC-SHA256 动态核销码**（30 秒轮换，接受当前与上一窗口），核销落 `biz_pickup_verify`。
+7. **信用评价与纠纷工单**：买卖双向评价（4-5 星 +3 分，3 星 0 分，1-2 星 -3 分，流水可追溯）；
+   纠纷走工单，用户/管理员多轮留言，处理结果回写并通知。
+8. **班级接龙 + 运营看板**：团长按课程发起接龙（目标册数/预期单价/6 位邀请码），同学凭码登记需求，
+   满额自动置 DONE；后台看板有 7 日成交趋势、转化漏斗（曝光→详情→发布→下单→支付→核销）、品相分布。
+
+## 快速开始
+
+### 方式一：零依赖跑后端（推荐，答辩演示用）
+
+后端自带 **H2 文件库** profile，不需要装 MySQL / Redis：
+
+```bash
+cd server
+# 需要 JDK 17+ 与 Maven 3.8+
+mvn spring-boot:run
+# 或打包后运行
+mvn -DskipTests package && java -jar target/textbook-loop-server-0.1.0.jar
+```
+
+- 服务地址：<http://127.0.0.1:8088>
+- 健康检查：<http://127.0.0.1:8088/v1/health>
+- H2 控制台：<http://127.0.0.1:8088/h2-console>（JDBC URL 见 `application-dev.yml`，用户 `sa`，空密码）
+- 首次启动自动建表并灌入示例数据（演示账号见下表）。
+
+### 方式二：MySQL + Redis + 全部服务
+
+```bash
+docker compose up -d --build
+# 后端 http://127.0.0.1:8088
+# 后台 http://127.0.0.1:8080
+```
+
+`db/schema.sql` 会被 MySQL 容器自动执行；手工初始化：
+
+```bash
+mysql -uroot -p < db/schema.sql
+```
+
+### 前端
+
+```bash
+# 管理后台
+cd admin && pnpm install && pnpm dev     # http://localhost:5173，默认 mock 数据
+# 接真后端：admin/.env 里把 VITE_USE_MOCK 设为 false
+
+# 小程序
+# 微信开发者工具导入 miniapp/，详情里勾选"不校验合法域名"
+# miniapp/utils/config.js 的 USE_MOCK = true 时不依赖后端即可点通全流程
+```
+
+## 演示账号
+
+| 账号 | 密码 | 角色 | 能做什么 |
+| --- | --- | --- | --- |
+| `13800000001` | `admin123` | ADMIN 管理员 | 后台看板、审核、冻结用户、处理工单 |
+| `13800000002` | `123456` | STUDENT 张同学 | 浏览、下单、评价 |
+| `13800000003` | `123456` | STUDENT 李同学 | 发布商品（示例商品卖家） |
+| `13800000004` | `123456` | CLERK 王书店 | 图书馆西门自提点核销 |
+| `13800000005` | `123456` | LEADER 陈班长 | 发起班级接龙（示例接龙码 `JY2026`） |
+
+登录：`POST /v1/auth/login`，body `{"account":"13800000002","password":"123456"}`，
+返回 `{code:0,message:"ok",data:{token,user}}`；后续请求带 `Authorization: Bearer <token>`。
+
+## 主流程演示（一条命令跑完）
+
+```bash
+pwsh tools/smoke.ps1     # Windows（PowerShell 7）；若只有 Windows PowerShell 5.1，用 powershell -File tools\smoke.ps1
+bash tools/smoke.sh      # macOS / Linux
+```
+
+依次验证：健康检查 → 管理员看板 → 学生查课程/教材 → 检索 → 详情与价格指数 → 下单（含幂等）→
+支付（资金冻结）→ 待核销 → 取动态核销码 → 店员核销 → 结算与信用分。**这是答辩最值得演示的一条链路。**
+
+## 目录结构
+
+```
+second-hand_bookstore/
+├── db/
+│   ├── schema.sql          # MySQL 8 正式 DDL（24 张表，说明见 docs/02-数据库设计.md）
+│   └── seed.sql            # 纯 SQL 示例数据（后端已有 DataInitializer，二选一）
+├── docs/
+│   ├── 01-项目模块介绍.md   # 模块划分 / 功能点 / 技术难点
+│   ├── 02-数据库设计.md     # 表结构、字段、索引与设计取舍
+│   ├── 03-问卷设计与统计口径.md
+│   └── 04-调研实施计划.md
+├── server/                 # Spring Boot 后端
+│   └── src/main/java/com/textbook/loop/
+│       ├── controller/     # REST 控制器
+│       ├── service/        # 业务逻辑（订单状态机、核销、接龙、评价…）
+│       ├── domain/         # 24 个实体（与 db/schema.sql 一一对应）
+│       ├── mapper/         # MyBatis-Plus Mapper
+│       ├── security/       # JWT、登录上下文、拦截器
+│       ├── bootstrap/      # 首次启动灌示例数据
+│       └── common/         # 统一响应体、分页、异常处理
+├── admin/                  # Vue 3 管理后台
+├── miniapp/                # 微信小程序
+├── tools/                  # 冒烟测试、H2 DDL 生成、小程序结构自检
+└── docker-compose.yml
+```
+
+## 接口约定
+
+统一前缀 `/v1`，统一响应体：
+
+```json
+{ "code": 0, "message": "ok", "data": {} }
+```
+
+错误码：`40000` 参数错误 / `40100` 未登录 / `40300` 无权限 / `40400` 不存在 / `40900` 状态冲突。
+分页：`{ "records": [], "total": 0, "page": 1, "size": 20 }`。
+
+接口分组：`/v1/auth/*`、`/v1/courses|textbooks|recommend`、`/v1/listings/*`、`/v1/orders/*`、
+`/v1/reviews`、`/v1/tickets/*`、`/v1/group-buys/*`、`/v1/pickup-points/*`、`/v1/notices/*`、`/v1/admin/*`。
+
+## 设计上的几个取舍
+
+- **为什么既有 H2 又有 MySQL DDL？** 答辩现场装 MySQL 风险高；H2 用 `MODE=MySQL`，DDL 由
+  `tools/gen-h2-schema.js` 从 `db/schema.sql` 机械生成，两边结构永远一致，而不是维护两份手写脚本。
+- **为什么核销码是动态的？** 静态二维码容易被截图转发，线下交付必须"当面出示、当场校验"；
+  用 HMAC-SHA256 以 30 秒为窗口生成，容忍一个窗口的时钟漂移。
+- **为什么下单要幂等表？** 学生网络差时容易连点，重复请求应返回同一张订单而不是报错；
+  `sys_idempotent` 记录 requestId → orderNo，第二个请求直接读回结果。
+- **为什么资金是 FROZEN 而不是直接打款？** 平台不碰资金池：下单冻结、核销后结算给卖家，
+  退款时释放，符合"担保交易"的口径。
+
+## 已知限制
+
+- 微信支付、ISBN OCR、订阅消息预留了接口位，当前用 mock/占位实现（答辩够用，上线需补齐资质与配置）。
+- 推荐是规则召回（同课程 + 收藏共现），不是模型排序；数据量上来后可替换为 ItemCF。
+- 管理后台默认走 mock，接真后端需改 `admin/.env`。
+
+## License
+
+MIT

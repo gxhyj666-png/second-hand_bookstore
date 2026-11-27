@@ -1,0 +1,161 @@
+<view class="page page-with-bar">
+
+  <view class="skeleton" wx:if="{{loading}}">
+    <view class="sk-row"></view>
+    <view class="sk-row"></view>
+  </view>
+
+  <block wx:if="{{!loading && detail}}">
+
+    <!-- 封面轮播 -->
+    <swiper
+      class="cover-swiper"
+      wx:if="{{detail.images.length > 1}}"
+      indicator-dots="true"
+      indicator-color="rgba(255,255,255,0.4)"
+      indicator-active-color="#ffffff"
+      circular="true"
+    >
+      <swiper-item wx:for="{{detail.images}}" wx:key="*this">
+        <image class="cover-img" src="{{item}}" mode="aspectFill"></image>
+      </swiper-item>
+    </swiper>
+
+    <view class="cover-hero tone-{{tone}}" wx:else>
+      <view class="cover-spine"></view>
+      <view class="cover-inner">
+        <text class="cover-title">{{coverTitle}}</text>
+        <text class="cover-edition" wx:if="{{detail.edition}}">{{detail.edition}}</text>
+        <text class="cover-press" wx:if="{{detail.publisher}}">{{detail.publisher}}</text>
+      </view>
+      <view class="cover-foot">
+        <text class="cover-cat">{{detail.category || '教材'}}</text>
+        <text class="cover-views">{{detail.viewCount || 0}} 次浏览</text>
+      </view>
+    </view>
+
+    <!-- 价格与版本校验 -->
+    <view class="price-card">
+      <view class="price-row">
+        <view class="price-main">
+          <text class="price-symbol">¥</text>
+          <text class="price-num">{{priceText}}</text>
+          <text class="origin" wx:if="{{originalPriceText}}">¥{{originalPriceText}}</text>
+        </view>
+        <view class="price-save" wx:if="{{savePercent > 0}}">省 {{savePercent}}%</view>
+      </view>
+
+      <view class="badge-row">
+        <text class="badge badge-gold" wx:if="{{detail.schoolRequired}}">{{versionBadge}}</text>
+        <text class="badge badge-green" wx:else>{{versionBadge}}</text>
+        <text class="badge badge-gray">{{conditionText}}</text>
+        <text class="badge badge-gray" wx:if="{{detail.isbn13}}">ISBN {{detail.isbn13}}</text>
+      </view>
+
+      <view class="title">{{detail.title}}</view>
+      <view class="sub-line" wx:if="{{detail.author}}">{{detail.author}} 编著</view>
+      <view class="sub-line" wx:if="{{detail.course}}">课程：{{detail.course.name}} · {{detail.teacher}}</view>
+    </view>
+
+    <!-- 品相与描述 -->
+    <view class="card">
+      <view class="card-hd">
+        <text class="t-md">品相说明</text>
+        <text class="tag tag-green">{{conditionText}}</text>
+      </view>
+      <view class="desc">{{detail.description || '卖家未填写更多描述，可在自提点当面验书。'}}</view>
+      <view class="meta-grid">
+        <view class="meta-item">
+          <text class="meta-k">出版社</text>
+          <text class="meta-v">{{detail.publisher || '—'}}</text>
+        </view>
+        <view class="meta-item">
+          <text class="meta-k">版本</text>
+          <text class="meta-v">{{detail.edition || '—'}}</text>
+        </view>
+        <view class="meta-item">
+          <text class="meta-k">宿舍</text>
+          <text class="meta-v">{{detail.dorm || '—'}}</text>
+        </view>
+        <view class="meta-item">
+          <text class="meta-k">距离</text>
+          <text class="meta-v">{{distanceText || '—'}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 卖家 -->
+    <view class="card">
+      <view class="seller">
+        <view class="avatar">{{detail.seller.nickname ? detail.seller.nickname[0] : '同'}}</view>
+        <view class="seller-info">
+          <view class="seller-name">
+            {{detail.seller.nickname || '同校同学'}}
+            <text class="tag tag-green" wx:if="{{detail.seller.verifyState === 'VERIFIED'}}">已认证</text>
+          </view>
+          <view class="seller-sub">{{detail.seller.college || '本校在读'}} · 信用分 {{detail.seller.creditScore || 100}}</view>
+        </view>
+        <view class="seller-btn" bindtap="onContact">联系卖家</view>
+      </view>
+    </view>
+
+    <!-- 自提点 -->
+    <view class="card">
+      <view class="card-hd">
+        <text class="t-md">可选自提点</text>
+        <text class="muted">下单时选择</text>
+      </view>
+      <view class="point" wx:for="{{points}}" wx:key="id">
+        <view class="point-head">
+          <text class="point-name">{{item.name}}</text>
+          <text class="point-distance">{{item.distanceText}}</text>
+        </view>
+        <view class="point-addr">{{item.address}}</view>
+        <view class="point-time">营业 {{item.openTime}} - {{item.closeTime}}</view>
+      </view>
+      <view class="empty-inline" wx:if="{{points.length === 0}}">暂无可用自提点</view>
+    </view>
+
+    <!-- 担保说明 -->
+    <view class="card">
+      <view class="card-hd">
+        <text class="t-md">平台担保交易</text>
+      </view>
+      <view class="guarantee">
+        <view class="g-item">
+          <text class="g-step">1</text>
+          <text class="g-text">支付后资金由平台冻结，不直接打给卖家</text>
+        </view>
+        <view class="g-item">
+          <text class="g-step">2</text>
+          <text class="g-text">到自提点当面验书，向店员出示 30 秒轮换核销码</text>
+        </view>
+        <view class="g-item">
+          <text class="g-step">3</text>
+          <text class="g-text">核销通过后 T+1 结算给卖家，双方信用分 +2</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="tip-foot">书况以当面验收为准 · 平台禁止线下转账</view>
+
+    <!-- 底部操作条 -->
+    <view class="bottom-bar">
+      <view class="bottom-bar-inner">
+        <view class="fav" bindtap="onFavorite">
+          <text class="fav-ico {{favorite ? 'fav-on' : ''}}">{{favorite ? '♥' : '♡'}}</text>
+          <text class="fav-txt">{{favorite ? '已收藏' : '收藏'}}</text>
+        </view>
+        <view class="bar-price">
+          <text class="bar-price-label">合计</text>
+          <text class="bar-price-num">¥{{priceText}}</text>
+        </view>
+        <view class="bar-btn {{canBuy ? 'btn-primary' : 'btn-disabled'}}" bindtap="onOrder">
+          {{canBuy ? (isOwner ? '这是你上架的' : '立即下单') : '已售出 / 已下架'}}
+        </view>
+      </view>
+    </view>
+
+  </block>
+
+</view>

@@ -1,0 +1,98 @@
+<view class="page">
+
+  <!-- 顶部：学校 + 搜索 -->
+  <view class="hero">
+    <view class="hero-top">
+      <view class="hero-left">
+        <view class="hero-school">{{schoolName}}<text class="hero-arrow">›</text></view>
+        <view class="hero-sub">{{term}} 学期 · 同校面交</view>
+      </view>
+      <view class="hero-bell" bindtap="goMessages">
+        <text class="bell-ico">✉</text>
+        <view class="bell-dot" wx:if="{{unread > 0}}">{{unread > 99 ? '99+' : unread}}</view>
+      </view>
+    </view>
+
+    <view class="search" bindtap="goSearch">
+      <text class="search-ico">⌕</text>
+      <text class="search-ph">搜教材名 / ISBN / 课程</text>
+      <view class="search-scan" catchtap="onScan">扫 ISBN</view>
+    </view>
+
+    <view class="hero-tip" wx:if="{{isMock}}">当前为本地演示数据，可在 utils/mock.js 关闭</view>
+  </view>
+
+  <!-- 快捷入口 -->
+  <view class="quick">
+    <view class="quick-item" bindtap="onScan">
+      <view class="quick-ico quick-ico-1">扫</view>
+      <text class="quick-label">扫码找书</text>
+    </view>
+    <view class="quick-item" bindtap="goGroupBuy">
+      <view class="quick-ico quick-ico-2">团</view>
+      <text class="quick-label">班级接龙</text>
+    </view>
+    <view class="quick-item" bindtap="goVerify">
+      <view class="quick-ico quick-ico-3">核</view>
+      <text class="quick-label">店员核销</text>
+    </view>
+    <view class="quick-item" bindtap="goMyListings">
+      <view class="quick-ico quick-ico-4">架</view>
+      <text class="quick-label">我的书架</text>
+    </view>
+  </view>
+
+  <!-- 我的课程 -->
+  <view class="section-head">
+    <text class="section-title">我的课程</text>
+    <text class="section-more" bindtap="goSearch">全部课程 ›</text>
+  </view>
+
+  <scroll-view class="course-scroll" scroll-x="true" show-scrollbar="false">
+    <view
+      class="course-card"
+      wx:for="{{courses}}"
+      wx:key="id"
+      bindtap="onCourseTap"
+      data-id="{{item.id}}"
+      data-name="{{item.name}}"
+    >
+      <view class="course-code">{{item.code}}</view>
+      <view class="course-name">{{item.name}}</view>
+      <view class="course-meta">{{item.teacher}} · {{item.credit}} 学分</view>
+      <view class="course-book" wx:if="{{item.textbookTitle}}">
+        <text class="course-book-tag">指定</text>
+        <text class="course-book-name">{{item.textbookTitle}}</text>
+      </view>
+      <view class="course-book course-book-none" wx:else>暂无指定教材</view>
+    </view>
+    <view class="course-scroll-pad"></view>
+  </scroll-view>
+
+  <!-- 同校在售 -->
+  <view class="section-head">
+    <text class="section-title">同校在售</text>
+    <text class="section-sub">共 {{total}} 本 · 按距离与品相推荐</text>
+  </view>
+
+  <view class="skeleton" wx:if="{{loading}}">
+    <view class="sk-row" wx:for="{{[1, 2, 3]}}" wx:key="*this"></view>
+  </view>
+
+  <view class="list" wx:else>
+    <book-card wx:for="{{listings}}" wx:key="id" item="{{item}}"></book-card>
+  </view>
+
+  <empty
+    wx:if="{{!loading && listings.length === 0}}"
+    text="同校还没有在售的教材"
+    sub="把你的旧书挂上来，让它去下一个教室"
+    action-text="去卖书"
+    bind:action="goPublish"
+  ></empty>
+
+  <view class="load-more" wx:if="{{!loading && listings.length > 0}}">
+    {{hasMore ? '上拉加载更多' : '没有更多了'}}
+  </view>
+
+</view>

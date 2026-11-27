@@ -1,0 +1,37 @@
+<view class="bk" bindtap="onTap">
+  <view class="bk-cover tone-{{tone}}">
+    <view class="bk-cover-lines"></view>
+    <view class="bk-cover-body">
+      <text class="bk-cover-title">{{coverTitle}}</text>
+      <text class="bk-cover-edition" wx:if="{{item.edition}}">{{item.edition}}</text>
+    </view>
+    <view class="bk-cover-foot">
+      <text class="bk-cover-cat">{{item.category || '教材'}}</text>
+    </view>
+  </view>
+
+  <view class="bk-body">
+    <view class="bk-title">{{item.title}}</view>
+
+    <view class="bk-tags">
+      <text class="bk-tag bk-tag-green">{{conditionText}}</text>
+      <text class="bk-tag bk-tag-gold" wx:if="{{item.schoolRequired}}">本校指定</text>
+      <text class="bk-tag bk-tag-gray" wx:if="{{item.publisher}}">{{item.publisher}}</text>
+    </view>
+
+    <view class="bk-meta">
+      <text class="bk-dorm">{{item.dorm || '校内面交'}}</text>
+      <text class="bk-meta-dot" wx:if="{{showDistance && distanceText}}">·</text>
+      <text class="bk-distance" wx:if="{{showDistance && distanceText}}">{{distanceText}}</text>
+    </view>
+
+    <view class="bk-foot">
+      <view class="bk-price">
+        <text class="bk-symbol">¥</text>
+        <text class="bk-num">{{priceText}}</text>
+        <text class="bk-origin" wx:if="{{originText}}">¥{{originText}}</text>
+      </view>
+      <text class="bk-want" wx:if="{{item.favoriteCount}}">{{item.favoriteCount}} 人想要</text>
+    </view>
+  </view>
+</view>

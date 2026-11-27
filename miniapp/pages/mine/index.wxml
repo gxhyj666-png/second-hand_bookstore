@@ -1,0 +1,159 @@
+<view class="page">
+
+  <!-- 个人信息 -->
+  <view class="profile">
+    <view class="profile-row">
+      <view class="avatar avatar-lg" wx:if="{{logged}}">{{avatarText}}</view>
+      <view class="avatar avatar-lg" wx:else bindtap="onLogin">登</view>
+      <view class="profile-body">
+        <block wx:if="{{logged}}">
+          <view class="profile-name">{{user.nickname}}</view>
+          <view class="profile-meta">{{user.college || '未填写学院'}} · {{user.major || '未填写专业'}}</view>
+          <view class="profile-dorm" wx:if="{{user.dorm}}">宿舍 {{user.dorm}}</view>
+        </block>
+        <block wx:else>
+          <view class="profile-name">未登录</view>
+          <view class="profile-meta">登录后查看书架、收藏和订单</view>
+        </block>
+      </view>
+      <view class="credit" wx:if="{{logged}}" bindtap="onCreditInfo">
+        <view class="credit-num">{{user.creditScore}}</view>
+        <view class="credit-label">信用分</view>
+      </view>
+      <view class="login-btn" wx:else bindtap="onLogin">登录</view>
+    </view>
+
+    <view class="stat-row" wx:if="{{logged}}">
+      <view class="stat" bindtap="goListings">
+        <view class="stat-num">{{onSaleCount}}</view>
+        <view class="stat-label">在售</view>
+      </view>
+      <view class="stat" bindtap="goListings">
+        <view class="stat-num">{{soldCount}}</view>
+        <view class="stat-label">已售</view>
+      </view>
+      <view class="stat">
+        <view class="stat-num">{{favoriteCount}}</view>
+        <view class="stat-label">收藏</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 功能入口 -->
+  <view class="cell-group">
+    <view class="cell" bindtap="goListings">
+      <text class="cell-icon">架</text>
+      <text class="cell-label">我的书架</text>
+      <text class="cell-value">在售 {{onSaleCount}} 本</text>
+      <text class="cell-arrow">›</text>
+    </view>
+    <view class="cell" bindtap="openMessages">
+      <text class="cell-icon">消</text>
+      <text class="cell-label">消息通知</text>
+      <text class="cell-value">
+        <text class="badge" wx:if="{{unread > 0}}">{{unread}}</text>
+        <text wx:else>暂无未读</text>
+      </text>
+      <text class="cell-arrow">›</text>
+    </view>
+    <view class="cell" bindtap="goGroup">
+      <text class="cell-icon">接</text>
+      <text class="cell-label">我的接龙</text>
+      <text class="cell-value" wx:if="{{group}}">已登记 {{group.myQuantity}} 册</text>
+      <text class="cell-value" wx:else>暂无</text>
+      <text class="cell-arrow">›</text>
+    </view>
+    <view class="cell" bindtap="goVerify">
+      <text class="cell-icon">核</text>
+      <text class="cell-label">店员核销台</text>
+      <text class="cell-value">自提点专用</text>
+      <text class="cell-arrow">›</text>
+    </view>
+  </view>
+
+  <!-- 我的收藏 -->
+  <view class="section-head">
+    <text class="section-title">我的收藏</text>
+    <text class="section-more" bindtap="goHome">去逛逛 ›</text>
+  </view>
+
+  <view class="fav-empty" wx:if="{{favorites.length === 0}}">
+    <view class="fav-empty-text">还没有收藏教材，看到合适的先收藏，等价格合适再下手</view>
+  </view>
+
+  <scroll-view class="fav-scroll" scroll-x="true" wx:else>
+    <view class="fav-list">
+      <view class="fav" wx:for="{{favorites}}" wx:key="id" bindtap="goDetail" data-id="{{item.id}}">
+        <view class="fav-cover">书</view>
+        <view class="fav-title">{{item.title}}</view>
+        <view class="fav-meta">{{item.conditionText}}</view>
+        <view class="fav-price">¥{{item.priceText}}</view>
+      </view>
+    </view>
+  </scroll-view>
+
+  <!-- 我的接龙 -->
+  <block wx:if="{{group}}">
+    <view class="section-head">
+      <text class="section-title">我的接龙</text>
+    </view>
+    <view class="card gb" bindtap="goGroup">
+      <view class="gb-top">
+        <view class="gb-title">{{group.title}}</view>
+        <view class="tag tag-green">{{group.statusText}}</view>
+      </view>
+      <view class="gb-bar">
+        <view class="gb-bar-inner" style="width: {{group.progress}}%"></view>
+      </view>
+      <view class="gb-foot">
+        <text>已登记 {{group.currentCount}} / {{group.targetCount}} 册</text>
+        <text class="gb-price">¥{{group.unitPriceText}}/册</text>
+      </view>
+    </view>
+  </block>
+
+  <!-- 设置 -->
+  <view class="cell-group">
+    <view class="cell" bindtap="onCreditInfo">
+      <text class="cell-icon">信</text>
+      <text class="cell-label">信用分规则</text>
+      <text class="cell-arrow">›</text>
+    </view>
+    <view class="cell" bindtap="onClearCache">
+      <text class="cell-icon">缓</text>
+      <text class="cell-label">清除本地缓存</text>
+      <text class="cell-arrow">›</text>
+    </view>
+    <view class="cell" bindtap="onAbout">
+      <text class="cell-icon">同</text>
+      <text class="cell-label">关于同窗书</text>
+      <text class="cell-value">v1.0.0</text>
+      <text class="cell-arrow">›</text>
+    </view>
+  </view>
+
+  <view class="logout-btn" wx:if="{{logged}}" bindtap="onLogout">退出登录</view>
+  <view class="login-tip" wx:else>演示账号 buyer001 / 123456（买家）、seller001 / 123456（卖家）、clerk001 / 123456（店员）</view>
+
+  <!-- 消息弹层 -->
+  <view class="mask" wx:if="{{msgOpen}}" bindtap="closeMessages"></view>
+  <view class="msg-panel" wx:if="{{msgOpen}}">
+    <view class="msg-head">
+      <text class="msg-title">消息通知</text>
+      <text class="msg-close" bindtap="closeMessages">关闭</text>
+    </view>
+    <scroll-view class="msg-list" scroll-y="true">
+      <view class="msg" wx:for="{{messages}}" wx:key="id">
+        <view class="msg-row">
+          <view class="msg-dot" wx:if="{{!item.read}}"></view>
+          <text class="msg-name">{{item.title}}</text>
+          <text class="msg-time">{{item.timeText}}</text>
+        </view>
+        <view class="msg-content">{{item.content}}</view>
+      </view>
+      <view class="msg-none" wx:if="{{messages.length === 0}}">暂无消息</view>
+    </scroll-view>
+  </view>
+
+  <view class="safe-bottom"></view>
+</view>

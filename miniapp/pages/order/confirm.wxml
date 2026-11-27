@@ -1,0 +1,94 @@
+<view class="page page-with-bar">
+
+  <!-- 教材信息 -->
+  <view class="card" wx:if="{{listing}}">
+    <view class="goods">
+      <view class="goods-cover">书</view>
+      <view class="goods-body">
+        <view class="goods-title">{{listing.title}}</view>
+        <view class="goods-meta">{{listing.edition}} · {{listing.conditionText}}</view>
+        <view class="goods-dorm">面交宿舍：{{listing.dorm || '—'}}</view>
+        <view class="goods-price">¥{{amountText}}</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 自提点 -->
+  <view class="card">
+    <view class="card-hd">
+      <text class="t-md">选择自提点</text>
+      <text class="muted">到店验书后核销</text>
+    </view>
+
+    <view
+      class="point {{pointId === item.id ? 'point-on' : ''}}"
+      wx:for="{{points}}"
+      wx:key="id"
+      bindtap="onPickPoint"
+      data-id="{{item.id}}"
+    >
+      <view class="point-radio">
+        <view class="radio-dot" wx:if="{{pointId === item.id}}"></view>
+      </view>
+      <view class="point-body">
+        <view class="point-head">
+          <text class="point-name">{{item.name}}</text>
+          <text class="point-distance">{{item.distanceText}}</text>
+        </view>
+        <view class="point-addr">{{item.address}}</view>
+        <view class="point-time">营业 {{item.openTime}} - {{item.closeTime}}</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 金额 -->
+  <view class="card">
+    <view class="fee-row">
+      <text class="fee-k">教材金额</text>
+      <text class="fee-v">¥{{amountText}}</text>
+    </view>
+    <view class="fee-row">
+      <text class="fee-k">平台服务费</text>
+      <text class="fee-v">¥{{feeText}}</text>
+    </view>
+    <view class="divider"></view>
+    <view class="fee-row">
+      <text class="fee-k fee-k-strong">应付合计</text>
+      <text class="fee-total">¥{{totalText}}</text>
+    </view>
+  </view>
+
+  <!-- 担保说明 -->
+  <view class="card">
+    <view class="card-hd">
+      <text class="t-md">担保交易说明</text>
+    </view>
+    <view class="notice">
+      <text class="notice-dot">1</text>
+      <text class="notice-text">支付后金额由平台冻结，卖家拿不到钱，直到你到自提点核销成功。</text>
+    </view>
+    <view class="notice">
+      <text class="notice-dot">2</text>
+      <text class="notice-text">核销码 30 秒刷新一次，请勿截图转发给非自提点店员。</text>
+    </view>
+    <view class="notice">
+      <text class="notice-dot">3</text>
+      <text class="notice-text">若书况与描述不符，可在核销前申请退款，平台介入处理。</text>
+    </view>
+    <view class="pay-hint">当前为演示环境，支付渠道：模拟支付（MOCK）</view>
+  </view>
+
+  <!-- 底栏 -->
+  <view class="bottom-bar">
+    <view class="bottom-bar-inner">
+      <view class="bar-total">
+        <text class="bar-label">应付</text>
+        <text class="bar-amount">¥{{totalText}}</text>
+      </view>
+      <view class="btn btn-primary bar-btn {{submitting ? 'btn-disabled' : ''}}" bindtap="onSubmit">
+        {{submitting ? '提交中…' : '提交订单并支付'}}
+      </view>
+    </view>
+  </view>
+
+</view>

@@ -1,0 +1,193 @@
+.bk {
+  display: flex;
+  background-color: #ffffff;
+  border-radius: 20rpx;
+  padding: 20rpx;
+  margin: 20rpx 24rpx 0;
+  box-shadow: 0 4rpx 16rpx rgba(31, 35, 40, 0.04);
+}
+
+.bk:active {
+  background-color: #fbfcfa;
+}
+
+/* -------- 封面占位（不使用本地图片，避免图片缺失报错） -------- */
+.bk-cover {
+  position: relative;
+  width: 168rpx;
+  height: 224rpx;
+  border-radius: 10rpx;
+  overflow: hidden;
+  flex-shrink: 0;
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 16rpx 14rpx;
+}
+
+.tone-0 {
+  background-image: linear-gradient(135deg, #3f8a43 0%, #245c28 100%);
+}
+
+.tone-1 {
+  background-image: linear-gradient(135deg, #2f7f86 0%, #1d5459 100%);
+}
+
+.tone-2 {
+  background-image: linear-gradient(135deg, #4a6fa8 0%, #2d4772 100%);
+}
+
+.tone-3 {
+  background-image: linear-gradient(135deg, #b07a35 0%, #7a521f 100%);
+}
+
+.tone-4 {
+  background-image: linear-gradient(135deg, #8a5d7d 0%, #5c3b52 100%);
+}
+
+.bk-cover-lines {
+  position: absolute;
+  left: 12rpx;
+  top: 0;
+  bottom: 0;
+  width: 2rpx;
+  background-color: rgba(255, 255, 255, 0.28);
+}
+
+.bk-cover-body {
+  padding-left: 10rpx;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.bk-cover-title {
+  font-size: 22rpx;
+  line-height: 1.4;
+  font-weight: 600;
+  letter-spacing: 1rpx;
+  word-break: break-all;
+}
+
+.bk-cover-edition {
+  font-size: 18rpx;
+  opacity: 0.8;
+  margin-top: 8rpx;
+}
+
+.bk-cover-foot {
+  padding-left: 10rpx;
+}
+
+.bk-cover-cat {
+  font-size: 16rpx;
+  opacity: 0.75;
+  border: 1rpx solid rgba(255, 255, 255, 0.5);
+  border-radius: 4rpx;
+  padding: 1rpx 6rpx;
+}
+
+/* -------- 右侧信息 -------- */
+.bk-body {
+  flex: 1;
+  min-width: 0;
+  padding-left: 20rpx;
+  display: flex;
+  flex-direction: column;
+}
+
+.bk-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #1f2328;
+  line-height: 1.35;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.bk-tags {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 12rpx;
+}
+
+.bk-tag {
+  font-size: 20rpx;
+  line-height: 1.4;
+  padding: 2rpx 10rpx;
+  border-radius: 6rpx;
+  margin-right: 8rpx;
+  margin-bottom: 6rpx;
+}
+
+.bk-tag-green {
+  background-color: #e8f3e9;
+  color: #2f7d32;
+}
+
+.bk-tag-gold {
+  background-color: #fdf3e0;
+  color: #a8710a;
+}
+
+.bk-tag-gray {
+  background-color: #f2f3f4;
+  color: #7b8085;
+  max-width: 220rpx;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.bk-meta {
+  display: flex;
+  align-items: center;
+  font-size: 22rpx;
+  color: #9aa0a6;
+  margin-top: 8rpx;
+}
+
+.bk-meta-dot {
+  margin: 0 8rpx;
+}
+
+.bk-foot {
+  margin-top: auto;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.bk-price {
+  display: flex;
+  align-items: baseline;
+  color: #e2453c;
+}
+
+.bk-symbol {
+  font-size: 22rpx;
+  font-weight: 600;
+}
+
+.bk-num {
+  font-size: 40rpx;
+  font-weight: 700;
+  line-height: 1;
+  margin-left: 2rpx;
+}
+
+.bk-origin {
+  font-size: 20rpx;
+  color: #b3b8bd;
+  text-decoration: line-through;
+  margin-left: 10rpx;
+}
+
+.bk-want {
+  font-size: 20rpx;
+  color: #9aa0a6;
+}

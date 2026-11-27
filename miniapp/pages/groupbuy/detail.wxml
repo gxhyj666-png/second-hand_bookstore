@@ -1,0 +1,125 @@
+<view class="page page-with-bar">
+
+  <view class="skeleton" wx:if="{{loading}}">
+    <view class="sk-row"></view>
+    <view class="sk-row"></view>
+  </view>
+
+  <block wx:if="{{!loading && group}}">
+
+    <!-- 头部 -->
+    <view class="hero">
+      <view class="hero-top">
+        <view class="hero-tag">班级接龙</view>
+        <view class="hero-status {{group.status === 'OPEN' ? 'open' : 'closed'}}">{{group.statusText}}</view>
+      </view>
+      <view class="hero-title">{{group.title}}</view>
+      <view class="hero-meta">发起人 {{group.leader.nickname}} · {{group.textbookEdition}}</view>
+      <view class="hero-code" bindtap="copyCode">邀请码 {{group.inviteCode}} · 点击复制</view>
+    </view>
+
+    <!-- 进度 -->
+    <view class="card">
+      <view class="progress-head">
+        <view class="progress-num">{{group.currentCount}}<text class="progress-unit">册</text></view>
+        <view class="progress-target">目标 {{group.targetCount}} 册</view>
+      </view>
+      <view class="bar">
+        <view class="bar-inner" style="width: {{group.progress}}%"></view>
+      </view>
+      <view class="progress-foot">
+        <text>已完成 {{group.progress}}%</text>
+        <text wx:if="{{group.remainCount > 0}}">还差 {{group.remainCount}} 册成团</text>
+        <text wx:else class="done-text">已达成团目标</text>
+      </view>
+      <view class="deadline">截止 {{group.deadlineText}} · 还剩 {{group.daysLeft}} 天</view>
+    </view>
+
+    <!-- 教材与单价 -->
+    <view class="card">
+      <view class="card-hd">
+        <text class="t-md">本次接龙教材</text>
+        <text class="muted" bindtap="goBook">看看二手 ›</text>
+      </view>
+      <view class="goods">
+        <view class="goods-cover">书</view>
+        <view class="goods-body">
+          <view class="goods-title">{{group.textbookTitle}}</view>
+          <view class="goods-meta">{{group.textbookEdition}} · 统一从出版社采购</view>
+          <view class="goods-price">¥{{group.unitPriceText}}<text class="goods-unit">/ 册</text></view>
+        </view>
+      </view>
+      <view class="desc">成团后由发起人统一采购，到货在图书馆西门自提点领取；平台按成交额收取 10% 服务费，用于对账与售后。</view>
+    </view>
+
+    <!-- 参与名单 -->
+    <view class="card">
+      <view class="card-hd">
+        <text class="t-md">接龙名单（{{group.participantCount}} 人 / {{group.totalQuantity}} 册）</text>
+      </view>
+      <view class="member" wx:for="{{group.participants}}" wx:key="index">
+        <view class="member-avatar tone-{{index % 5}}">{{item.nickname[0]}}</view>
+        <view class="member-body">
+          <view class="member-name">
+            {{item.nickname}}
+            <text class="leader-tag" wx:if="{{item.isLeader}}">发起人</text>
+          </view>
+          <view class="member-time">{{item.joinedAt}}</view>
+        </view>
+        <view class="member-qty">{{item.quantity}} 册</view>
+      </view>
+    </view>
+
+    <!-- 加入 -->
+    <view class="card">
+      <view class="card-hd">
+        <text class="t-md">{{group.joined ? '我的登记' : '加入接龙'}}</text>
+        <text class="muted" wx:if="{{group.joined}}">已登记 {{group.myQuantity}} 册</text>
+      </view>
+
+      <view class="qty-row">
+        <text class="qty-label">需要册数</text>
+        <view class="stepper">
+          <view class="step-btn" bindtap="onMinus">−</view>
+          <input class="step-input" type="number" value="{{quantity}}" bindinput="onQtyInput" />
+          <view class="step-btn" bindtap="onPlus">+</view>
+        </view>
+      </view>
+
+      <view class="field">
+        <view class="field-label">联系方式</view>
+        <input
+          class="field-input"
+          value="{{contact}}"
+          placeholder="微信号或手机号，方便通知领取"
+          placeholder-class="ph"
+          maxlength="40"
+          bindinput="onContactInput"
+        />
+      </view>
+
+      <view class="join-note">登记免费，成团后发起人会通过联系方式通知付款与领取，未成团自动取消。</view>
+    </view>
+
+    <!-- 底栏 -->
+    <view class="bottom-bar">
+      <view class="bottom-bar-inner">
+        <view class="bar-price">
+          <text class="bar-price-symbol">¥</text>
+          <text class="bar-price-num">{{group.unitPriceText}}</text>
+          <text class="bar-price-unit">/册</text>
+        </view>
+        <view class="bar-btn" bindtap="onJoin">
+          {{joining ? '登记中…' : (group.joined ? '更新登记' : '加入接龙')}}
+        </view>
+      </view>
+    </view>
+
+  </block>
+
+  <view class="empty-page" wx:if="{{!loading && !group}}">
+    <view class="empty-title">接龙不存在或已结束</view>
+    <view class="empty-sub">请向发起人确认邀请链接是否正确</view>
+  </view>
+
+</view>

@@ -1,0 +1,185 @@
+<view class="page page-with-bar">
+
+  <view class="skeleton" wx:if="{{loading}}">
+    <view class="sk-row"></view>
+    <view class="sk-row"></view>
+  </view>
+
+  <block wx:if="{{!loading && order}}">
+
+    <!-- 状态横幅 -->
+    <view class="banner">
+      <view class="banner-status">{{order.statusText}}</view>
+      <view class="banner-hint" wx:if="{{showCode}}">带上教材到 {{order.point.name}}，向店员出示核销码</view>
+      <view class="banner-hint" wx:elif="{{order.status === 'PENDING_PAY'}}">请在 {{order.expireAtText}} 前完成支付，超时订单自动关闭</view>
+      <view class="banner-hint" wx:elif="{{order.status === 'SETTLED'}}">交易已完成，感谢让这本书继续传递</view>
+      <view class="banner-hint" wx:else>订单已核销，等待平台结算</view>
+    </view>
+
+    <!-- 核销码 -->
+    <view class="code-card" wx:if="{{showCode}}">
+      <view class="code-label">自提核销码</view>
+      <view class="code-value">{{order.verifyCode}}</view>
+      <view class="code-tip">请出示给自提点店员扫码</view>
+      <view class="code-timer">
+        <text class="timer-num">{{codeText}}</text>
+        <text class="timer-text">后自动刷新，请勿截图转发</text>
+      </view>
+      <view class="code-refresh" bindtap="callPoint">自提点位置与营业时间</view>
+    </view>
+
+    <!-- 待支付 -->
+    <view class="card" wx:if="{{order.status === 'PENDING_PAY'}}">
+      <view class="card-hd">
+        <text class="t-md">待支付</text>
+        <text class="muted">剩余 15 分钟</text>
+      </view>
+      <view class="pay-box">
+        <text class="pay-amount">¥{{order.amountText}}</text>
+        <view class="btn btn-primary pay-btn" bindtap="onPay">模拟支付</view>
+      </view>
+      <view class="pay-note">支付后资金进入平台冻结，核销成功才会结算给卖家。</view>
+    </view>
+
+    <!-- 教材 -->
+    <view class="card" wx:if="{{order.listing}}">
+      <view class="card-hd">
+        <text class="t-md">教材信息</text>
+        <text class="muted">{{order.listing.conditionText}}</text>
+      </view>
+      <view class="goods">
+        <view class="goods-cover">书</view>
+        <view class="goods-body">
+          <view class="goods-title">{{order.listing.title}}</view>
+          <view class="goods-meta">{{order.listing.edition}} · {{order.listing.dorm}}</view>
+          <view class="goods-price">¥{{order.listing.priceText}}</view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 自提点 -->
+    <view class="card" wx:if="{{order.point}}">
+      <view class="card-hd">
+        <text class="t-md">自提点</text>
+      </view>
+      <view class="point-name">{{order.point.name}}</view>
+      <view class="point-addr">{{order.point.address}}</view>
+      <view class="point-time">营业 {{order.point.openTime}} - {{order.point.closeTime}}</view>
+    </view>
+
+    <!-- 时间轴 -->
+    <view class="card">
+      <view class="card-hd">
+        <text class="t-md">订单进度</text>
+      </view>
+      <view class="timeline">
+        <view class="tl-item" wx:for="{{order.timeline}}" wx:key="key">
+          <view class="tl-axis">
+            <view class="tl-dot {{item.done ? 'tl-dot-on' : ''}}"></view>
+            <view class="tl-line" wx:if="{{index < order.timeline.length - 1}}"></view>
+          </view>
+          <view class="tl-body">
+            <view class="tl-head">
+              <text class="tl-label {{item.done ? 'tl-label-on' : ''}}">{{item.label}}</text>
+              <text class="tl-time" wx:if="{{item.timeText}}">{{item.timeText}}</text>
+            </view>
+            <view class="tl-desc">{{item.desc}}</view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 订单信息 -->
+    <view class="card">
+      <view class="card-hd">
+        <text class="t-md">订单信息</text>
+        <text class="copy" bindtap="copyOrderNo">复制单号</text>
+      </view>
+      <view class="info-row">
+        <text class="info-k">订单号</text>
+        <text class="info-v">{{order.orderNo}}</text>
+      </view>
+      <view class="info-row">
+        <text class="info-k">下单时间</text>
+        <text class="info-v">{{order.createdAtText}}</text>
+      </view>
+      <view class="info-row" wx:if="{{order.paidAtText}}">
+        <text class="info-k">支付时间</text>
+        <text class="info-v">{{order.paidAtText}}</text>
+      </view>
+      <view class="info-row" wx:if="{{order.verifiedAtText}}">
+        <text class="info-k">核销时间</text>
+        <text class="info-v">{{order.verifiedAtText}}</text>
+      </view>
+      <view class="info-row">
+        <text class="info-k">支付方式</text>
+        <text class="info-v">模拟支付（MOCK）</text>
+      </view>
+      <view class="info-row">
+        <text class="info-k">{{order.role === 'buyer' ? '卖家' : '买家'}}</text>
+        <text class="info-v">{{order.counterpart}}</text>
+      </view>
+    </view>
+
+    <!-- 评价 -->
+    <view class="card" wx:if="{{order.canReview || order.reviewed}}">
+      <view class="card-hd">
+        <text class="t-md">交易评价</text>
+        <text class="muted" wx:if="{{order.canReview && !reviewOpen}}" bindtap="openReview">去评价 ›</text>
+      </view>
+
+      <view class="review-done" wx:if="{{order.reviewed}}">
+        <view class="stars-static">
+          <text class="star-static {{order.rating >= item ? 'star-on' : ''}}" wx:for="{{stars}}" wx:key="*this">★</text>
+        </view>
+        <view class="review-text">{{order.reviewContent || '这位同学没有留下文字评价'}}</view>
+      </view>
+
+      <view class="review-form" wx:elif="{{order.canReview && reviewOpen}}">
+        <view class="review-label">给这次交易打个分</view>
+        <view class="stars">
+          <text
+            class="star {{rating >= item ? 'star-on' : ''}}"
+            wx:for="{{stars}}"
+            wx:key="*this"
+            bindtap="onStar"
+            data-value="{{item}}"
+          >★</text>
+        </view>
+        <textarea
+          class="review-input"
+          value="{{reviewContent}}"
+          maxlength="120"
+          placeholder="书况和描述一致吗？卖家好沟通吗？"
+          placeholder-class="ph"
+          bindinput="onReviewInput"
+        ></textarea>
+        <view class="anon-row">
+          <text class="anon-label">匿名评价</text>
+          <switch checked="{{anonymous}}" color="#2f7d32" bindchange="onAnonymous" />
+        </view>
+        <view class="btn btn-primary review-btn" bindtap="submitReview">
+          {{submittingReview ? '提交中…' : '提交评价'}}
+        </view>
+      </view>
+
+      <view class="review-todo" wx:elif="{{order.canReview}}">交易已核销，可以给卖家一个评价</view>
+    </view>
+
+    <!-- 底栏 -->
+    <view class="bottom-bar">
+      <view class="bottom-bar-inner">
+        <view class="bar-hint">
+          <text class="bar-hint-k">实付</text>
+          <text class="bar-hint-v">¥{{order.amountText}}</text>
+        </view>
+        <view class="bar-actions">
+          <view class="btn btn-sm btn-ghost" bindtap="goHome">再去逛逛</view>
+          <view class="btn btn-sm btn-primary" wx:if="{{order.canPay}}" bindtap="onPay">模拟支付</view>
+        </view>
+      </view>
+    </view>
+
+  </block>
+
+</view>

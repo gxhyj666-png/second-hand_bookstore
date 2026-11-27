@@ -1,0 +1,409 @@
+.cover-swiper {
+  width: 100%;
+  height: 420rpx;
+  background-color: #1f2328;
+}
+
+.cover-img {
+  width: 100%;
+  height: 100%;
+}
+
+.cover-hero {
+  position: relative;
+  height: 420rpx;
+  padding: 40rpx 48rpx;
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.tone-0 {
+  background-image: linear-gradient(135deg, #3f8a43 0%, #245c28 100%);
+}
+
+.tone-1 {
+  background-image: linear-gradient(135deg, #2f7f86 0%, #1d5459 100%);
+}
+
+.tone-2 {
+  background-image: linear-gradient(135deg, #4a6fa8 0%, #2d4772 100%);
+}
+
+.tone-3 {
+  background-image: linear-gradient(135deg, #b07a35 0%, #7a521f 100%);
+}
+
+.tone-4 {
+  background-image: linear-gradient(135deg, #8a5d7d 0%, #5c3b52 100%);
+}
+
+.cover-spine {
+  position: absolute;
+  left: 32rpx;
+  top: 0;
+  bottom: 0;
+  width: 3rpx;
+  background-color: rgba(255, 255, 255, 0.24);
+}
+
+.cover-inner {
+  padding-left: 40rpx;
+}
+
+.cover-title {
+  font-size: 46rpx;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: 2rpx;
+}
+
+.cover-edition {
+  font-size: 26rpx;
+  opacity: 0.86;
+  margin-top: 16rpx;
+}
+
+.cover-press {
+  font-size: 22rpx;
+  opacity: 0.7;
+  margin-top: 10rpx;
+}
+
+.cover-foot {
+  position: absolute;
+  left: 72rpx;
+  right: 48rpx;
+  bottom: 32rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.cover-cat {
+  font-size: 20rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.5);
+  border-radius: 6rpx;
+  padding: 2rpx 10rpx;
+  opacity: 0.9;
+}
+
+.cover-views {
+  font-size: 20rpx;
+  opacity: 0.72;
+}
+
+/* -------- 价格卡 -------- */
+.price-card {
+  background-color: #ffffff;
+  border-radius: 20rpx;
+  margin: -32rpx 24rpx 0;
+  padding: 28rpx 24rpx;
+  position: relative;
+  z-index: 2;
+  box-shadow: 0 6rpx 24rpx rgba(31, 40, 32, 0.08);
+}
+
+.price-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.price-main {
+  display: flex;
+  align-items: baseline;
+  color: #e2453c;
+}
+
+.price-symbol {
+  font-size: 28rpx;
+  font-weight: 600;
+}
+
+.price-num {
+  font-size: 60rpx;
+  font-weight: 700;
+  line-height: 1;
+  margin-left: 4rpx;
+}
+
+.price-save {
+  font-size: 22rpx;
+  color: #e2453c;
+  background-color: #fdeceb;
+  border-radius: 8rpx;
+  padding: 6rpx 14rpx;
+}
+
+.badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 18rpx;
+}
+
+.badge {
+  font-size: 20rpx;
+  line-height: 1.5;
+  padding: 4rpx 12rpx;
+  border-radius: 8rpx;
+  margin-right: 10rpx;
+  margin-bottom: 8rpx;
+}
+
+.badge-gold {
+  color: #a8710a;
+  background-color: #fdf3e0;
+  border: 1rpx solid #f0dcb8;
+}
+
+.badge-green {
+  color: #2f7d32;
+  background-color: #e8f3e9;
+}
+
+.badge-gray {
+  color: #6b7075;
+  background-color: #f2f3f4;
+}
+
+.title {
+  font-size: 36rpx;
+  font-weight: 600;
+  color: #1f2328;
+  line-height: 1.45;
+  margin-top: 16rpx;
+}
+
+.sub-line {
+  font-size: 24rpx;
+  color: #8a9096;
+  margin-top: 8rpx;
+}
+
+/* -------- 描述 -------- */
+.desc {
+  font-size: 27rpx;
+  color: #4a5055;
+  line-height: 1.7;
+  background-color: #f7f9f7;
+  border-radius: 12rpx;
+  padding: 20rpx;
+}
+
+.meta-grid {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 20rpx;
+}
+
+.meta-item {
+  width: 50%;
+  display: flex;
+  align-items: center;
+  padding: 10rpx 0;
+}
+
+.meta-k {
+  font-size: 24rpx;
+  color: #9aa0a6;
+  width: 100rpx;
+}
+
+.meta-v {
+  font-size: 24rpx;
+  color: #1f2328;
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* -------- 卖家 -------- */
+.seller {
+  display: flex;
+  align-items: center;
+}
+
+.seller-info {
+  flex: 1;
+  min-width: 0;
+  padding-left: 20rpx;
+}
+
+.seller-name {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #1f2328;
+}
+
+.seller-name .tag {
+  margin-left: 10rpx;
+}
+
+.seller-sub {
+  font-size: 22rpx;
+  color: #9aa0a6;
+  margin-top: 6rpx;
+}
+
+.seller-btn {
+  height: 60rpx;
+  padding: 0 24rpx;
+  border-radius: 30rpx;
+  border: 1rpx solid #cfe3d1;
+  color: #2f7d32;
+  font-size: 24rpx;
+  display: flex;
+  align-items: center;
+}
+
+/* -------- 自提点 -------- */
+.point {
+  padding: 20rpx 0;
+  border-bottom: 1rpx dashed #eef0ee;
+}
+
+.point:last-child {
+  border-bottom: none;
+}
+
+.point-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.point-name {
+  font-size: 28rpx;
+  color: #1f2328;
+  font-weight: 500;
+}
+
+.point-distance {
+  font-size: 22rpx;
+  color: #2f7d32;
+  background-color: #e8f3e9;
+  border-radius: 6rpx;
+  padding: 2rpx 10rpx;
+}
+
+.point-addr {
+  font-size: 23rpx;
+  color: #8a9096;
+  margin-top: 8rpx;
+}
+
+.point-time {
+  font-size: 22rpx;
+  color: #a4a9ae;
+  margin-top: 6rpx;
+}
+
+.empty-inline {
+  font-size: 24rpx;
+  color: #a4a9ae;
+  padding: 20rpx 0;
+}
+
+/* -------- 担保 -------- */
+.guarantee {
+  padding-top: 6rpx;
+}
+
+.g-item {
+  display: flex;
+  align-items: flex-start;
+  padding: 10rpx 0;
+}
+
+.g-step {
+  width: 34rpx;
+  height: 34rpx;
+  border-radius: 50%;
+  background-color: #e8f3e9;
+  color: #2f7d32;
+  font-size: 20rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-right: 12rpx;
+  margin-top: 4rpx;
+}
+
+.g-text {
+  flex: 1;
+  font-size: 24rpx;
+  color: #4a5055;
+  line-height: 1.6;
+}
+
+.tip-foot {
+  text-align: center;
+  font-size: 22rpx;
+  color: #b3b8bd;
+  padding: 32rpx 0 12rpx;
+}
+
+/* -------- 底栏 -------- */
+.fav {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 88rpx;
+  justify-content: center;
+}
+
+.fav-ico {
+  font-size: 34rpx;
+  color: #9aa0a6;
+  line-height: 1.2;
+}
+
+.fav-on {
+  color: #e2453c;
+}
+
+.fav-txt {
+  font-size: 20rpx;
+  color: #9aa0a6;
+}
+
+.bar-price {
+  flex: 1;
+  display: flex;
+  align-items: baseline;
+  padding-left: 12rpx;
+}
+
+.bar-price-label {
+  font-size: 22rpx;
+  color: #8a9096;
+  margin-right: 8rpx;
+}
+
+.bar-price-num {
+  font-size: 40rpx;
+  font-weight: 700;
+  color: #e2453c;
+}
+
+.bar-btn {
+  min-width: 240rpx;
+  height: 84rpx;
+  border-radius: 42rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30rpx;
+  font-weight: 500;
+  color: #ffffff;
+}
+
+.btn-disabled {
+  background-color: #dfe3e0;
+  color: #ffffff;
+}

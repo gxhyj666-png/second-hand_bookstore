@@ -1,0 +1,121 @@
+<view class="page">
+
+  <!-- 搜索栏 -->
+  <view class="bar">
+    <view class="bar-input">
+      <text class="bar-ico">⌕</text>
+      <input
+        class="bar-field"
+        value="{{keyword}}"
+        placeholder="搜教材名 / ISBN / 作者"
+        placeholder-class="bar-ph"
+        confirm-type="search"
+        bindinput="onInput"
+        bindconfirm="onSearch"
+      />
+      <text class="bar-clear" wx:if="{{keyword}}" bindtap="onClear">✕</text>
+    </view>
+    <view class="bar-btn" bindtap="onSearch">搜索</view>
+  </view>
+
+  <!-- 搜索历史 -->
+  <view class="history" wx:if="{{!searched && history.length > 0}}">
+    <view class="history-head">
+      <text class="history-title">最近搜索</text>
+      <text class="history-clear" bindtap="clearHistory">清空</text>
+    </view>
+    <view class="chip-wrap">
+      <view class="chip" wx:for="{{history}}" wx:key="*this" bindtap="onHistoryTap" data-value="{{item}}">{{item}}</view>
+    </view>
+  </view>
+
+  <!-- 筛选入口 -->
+  <view class="filter-row">
+    <view class="filter-tab {{courseId ? 'filter-tab-on' : ''}}" bindtap="togglePanel">
+      {{courseName || '全部课程'}}
+      <text class="filter-arrow">▾</text>
+    </view>
+    <view class="filter-tab {{condition ? 'filter-tab-on' : ''}}" bindtap="togglePanel">
+      {{conditionLabel}}
+      <text class="filter-arrow">▾</text>
+    </view>
+    <view class="filter-tab {{sortIndex ? 'filter-tab-on' : ''}}" bindtap="togglePanel">
+      {{sorts[sortIndex].label}}
+      <text class="filter-arrow">▾</text>
+    </view>
+    <view class="filter-badge" wx:if="{{filterCount > 0}}" bindtap="resetFilters">重置</view>
+  </view>
+
+  <!-- 筛选面板 -->
+  <view class="panel-mask" wx:if="{{panelOpen}}" bindtap="closePanel"></view>
+  <view class="panel" wx:if="{{panelOpen}}">
+    <view class="panel-group">
+      <view class="panel-label">课程</view>
+      <picker range="{{courseNames}}" value="{{courseIndex}}" bindchange="onCourseChange">
+        <view class="panel-picker">
+          {{courseIndex === 0 ? '全部课程' : courseNames[courseIndex]}}
+          <text class="filter-arrow">▾</text>
+        </view>
+      </picker>
+    </view>
+
+    <view class="panel-group">
+      <view class="panel-label">品相</view>
+      <view class="chip-wrap">
+        <view
+          class="chip {{condition === item.value ? 'chip-on' : ''}}"
+          wx:for="{{conditions}}"
+          wx:key="value"
+          bindtap="onConditionTap"
+          data-value="{{item.value}}"
+          data-label="{{item.label}}"
+        >{{item.label}}</view>
+      </view>
+    </view>
+
+    <view class="panel-group">
+      <view class="panel-label">排序</view>
+      <view class="chip-wrap">
+        <view
+          class="chip {{sortIndex === index ? 'chip-on' : ''}}"
+          wx:for="{{sorts}}"
+          wx:key="value"
+          bindtap="onSortTap"
+          data-index="{{index}}"
+        >{{item.label}}</view>
+      </view>
+    </view>
+
+    <view class="panel-foot">
+      <view class="btn btn-plain panel-btn" bindtap="resetFilters">重置</view>
+      <view class="btn btn-primary panel-btn" bindtap="closePanel">确定</view>
+    </view>
+  </view>
+
+  <!-- 结果 -->
+  <view class="result-head" wx:if="{{searched}}">
+    <text class="result-count">共 {{total}} 条结果</text>
+    <text class="result-tip" wx:if="{{isbn}}">按 ISBN 检索：{{isbn}}</text>
+  </view>
+
+  <view class="skeleton" wx:if="{{loading && listings.length === 0}}">
+    <view class="sk-row" wx:for="{{[1, 2, 3]}}" wx:key="*this"></view>
+  </view>
+
+  <view class="list">
+    <book-card wx:for="{{listings}}" wx:key="id" item="{{item}}"></book-card>
+  </view>
+
+  <empty
+    wx:if="{{searched && !loading && listings.length === 0}}"
+    text="没有找到相关教材"
+    sub="换个关键词试试，或者把这本书挂上来自动匹配同校同学"
+    action-text="去卖书"
+    bind:action="goPublish"
+  ></empty>
+
+  <view class="load-more" wx:if="{{listings.length > 0}}">
+    {{hasMore ? '上拉加载更多' : '没有更多了'}}
+  </view>
+
+</view>

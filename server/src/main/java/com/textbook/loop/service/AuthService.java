@@ -1,0 +1,158 @@
+package com.textbook.loop.service;
+
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.textbook.loop.common.BizException;
+import com.textbook.loop.domain.SysUser;
+import com.textbook.loop.domain.UserAuth;
+import com.textbook.loop.dto.TokenView;
+import com.textbook.loop.mapper.SysUserMapper;
+import com.textbook.loop.mapper.UserAuthMapper;
+import com.textbook.loop.security.JwtUtil;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+
+/**
+ * 认证与用户资料。
+ */
+@Service
+public class AuthService {
+
+    private final SysUserMapper userMapper;
+    private final UserAuthMapper authMapper;
+    private final JwtUtil jwtUtil;
+    private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
+
+    public AuthService(SysUserMapper userMapper, UserAuthMapper authMapper, JwtUtil jwtUtil) {
+        this.userMapper = userMapper;
+        this.authMapper = authMapper;
+        this.jwtUtil = jwtUtil;
+    }
+
+    @Transactional
+    public TokenView register(String phone, String password, String nickname) {
+        if (phone == null || !phone.matches("^1\\d{10}$")) {
+            throw BizException.badRequest("手机号格式不正确");
+        }
+        if (password == null || password.length() < 6) {
+            throw BizException.badRequest("密码至少 6 位");
+        }
+        Long exists = authMapper.selectCount(new LambdaQueryWrapper<UserAuth>()
+                .eq(UserAuth::getAuthType, "PASSWORD")
+                .eq(UserAuth::getIdentifier, phone));
+        if (exists != null && exists > 0) {
+            throw BizException.conflict("该手机号已注册");
+        }
+        SysUser user = new SysUser();
+        user.setNickname(nickname == null || nickname.isBlank() ? "同学" + phone.substring(7) : nickname);
+        user.setPhone(phone);
+        user.setSchoolId(1L);
+        user.setCreditScore(100);
+        user.setRole("STUDENT");
+        user.setVerifyState("UNVERIFIED");
+        user.setStatus("NORMAL");
+        user.setLastLogin(LocalDateTime.now());
+        userMapper.insert(user);
+
+        UserAuth auth = new UserAuth();
+        auth.setUserId(user.getId());
+        auth.setAuthType("PASSWORD");
+        auth.setIdentifier(phone);
+        auth.setCredential(encoder.encode(password));
+        auth.setVerified(1);
+        authMapper.insert(auth);
+
+        return new TokenView(jwtUtil.issue(user.getId(), user.getRole()), user);
+    }
+
+    public TokenView login(String account, String password) {
+        UserAuth auth = authMapper.selectOne(new LambdaQueryWrapper<UserAuth>()
+                .eq(UserAuth::getAuthType, "PASSWORD")
+                .eq(UserAuth::getIdentifier, account)
+                .last("limit 1"));
+        if (auth == null || !encoder.matches(password == null ? "" : password, auth.getCredential())) {
+            throw BizException.unauthorized("账号或密码错误");
+        }
+        return issueFor(auth.getUserId());
+    }
+
+    /**
+     * 微信登录（教学演示版）：code 直接当作 openid，未注册则自动建号。
+     */
+    @Transactional
+    public TokenView wechat(String code) {
+        if (code == null || code.isBlank()) {
+            throw BizException.badRequest("缺少微信 code");
+        }
+        String openid = "wx_" + code.trim();
+        SysUser user = userMapper.selectOne(new LambdaQueryWrapper<SysUser>()
+                .eq(SysUser::getOpenid, openid).last("limit 1"));
+        if (user == null) {
+            user = new SysUser();
+            user.setOpenid(openid);
+            user.setNickname("微信用户" + Math.abs(openid.hashCode() % 10000));
+            user.setSchoolId(1L);
+            user.setCreditScore(100);
+            user.setRole("STUDENT");
+            user.setVerifyState("UNVERIFIED");
+            user.setStatus("NORMAL");
+            user.setLastLogin(LocalDateTime.now());
+            userMapper.insert(user);
+        }
+        return issueFor(user.getId());
+    }
+
+    private TokenView issueFor(Long userId) {
+        SysUser user = userMapper.selectById(userId);
+        if (user == null) {
+            throw BizException.notFound("用户不存在");
+        }
+        if ("FROZEN".equals(user.getStatus())) {
+            throw BizException.forbidden("账号已被冻结，请联系管理员");
+        }
+        user.setLastLogin(LocalDateTime.now());
+        userMapper.updateById(user);
+        return new TokenView(jwtUtil.issue(user.getId(), user.getRole()), user);
+    }
+
+    public SysUser me(Long userId) {
+        SysUser user = userMapper.selectById(userId);
+        if (user == null) {
+            throw BizException.notFound("用户不存在");
+        }
+        return user;
+    }
+
+    public SysUser updateProfile(Long userId, String nickname, String avatar, String college,
+                                 String major, String grade, String dorm) {
+        SysUser user = me(userId);
+        if (nickname != null) user.setNickname(nickname);
+        if (avatar != null) user.setAvatar(avatar);
+        if (college != null) user.setCollege(college);
+        if (major != null) user.setMajor(major);
+        if (grade != null) user.setGrade(grade);
+        if (dorm != null) user.setDorm(dorm);
+        userMapper.updateById(user);
+        return user;
+    }
+
+    /**
+     * 学号实名认证：提交后进入 PENDING，由管理员审核。
+     */
+    public SysUser verifyStudent(Long userId, String studentNo, String realName) {
+        if (studentNo == null || studentNo.isBlank() || realName == null || realName.isBlank()) {
+            throw BizException.badRequest("学号与姓名均不能为空");
+        }
+        SysUser user = me(userId);
+        if ("VERIFIED".equals(user.getVerifyState())) {
+            throw BizException.conflict("已通过认证");
+        }
+        user.setStudentNo(studentNo.trim());
+        user.setRealName(realName.trim());
+        user.setVerifyState("PENDING");
+        userMapper.updateById(user);
+        return user;
+    }
+}

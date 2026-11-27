@@ -1,0 +1,388 @@
+.step-head {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20rpx;
+}
+
+.step-no {
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: 50%;
+  background-color: #2f7d32;
+  color: #ffffff;
+  font-size: 22rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 12rpx;
+}
+
+.step-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #1f2328;
+  flex: 1;
+}
+
+.step-link {
+  font-size: 24rpx;
+  color: #2f7d32;
+}
+
+/* -------- 扫码 -------- */
+.scan-box {
+  display: flex;
+  align-items: center;
+  padding: 24rpx;
+  border-radius: 16rpx;
+  background-color: #eef6ef;
+  border: 1rpx dashed #bcd9bf;
+}
+
+.scan-ico {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 20rpx;
+  background-color: #2f7d32;
+  color: #ffffff;
+  font-size: 32rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 20rpx;
+}
+
+.scan-title {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #27682a;
+}
+
+.scan-sub {
+  font-size: 22rpx;
+  color: #6f8d72;
+  margin-top: 6rpx;
+}
+
+/* -------- 搜索 -------- */
+.search-box {
+  display: flex;
+  align-items: center;
+  margin-top: 20rpx;
+  height: 80rpx;
+  background-color: #f4f6f4;
+  border-radius: 40rpx;
+  padding: 0 8rpx 0 24rpx;
+}
+
+.search-input {
+  flex: 1;
+  font-size: 26rpx;
+  min-width: 0;
+}
+
+.search-btn {
+  height: 64rpx;
+  padding: 0 28rpx;
+  border-radius: 32rpx;
+  background-color: #2f7d32;
+  color: #ffffff;
+  font-size: 24rpx;
+  display: flex;
+  align-items: center;
+}
+
+.ph {
+  color: #a4a9ae;
+  font-size: 26rpx;
+}
+
+.search-hint {
+  font-size: 24rpx;
+  color: #8a9096;
+  padding: 20rpx 0 0;
+  text-align: center;
+}
+
+.search-empty {
+  font-size: 24rpx;
+  color: #a4a9ae;
+  text-align: center;
+  padding: 32rpx 0 8rpx;
+  line-height: 1.6;
+}
+
+/* -------- 教材搜索结果 -------- */
+.book-list {
+  margin-top: 20rpx;
+  border-top: 1rpx solid #f2f4f2;
+}
+
+.book-item {
+  display: flex;
+  align-items: center;
+  padding: 22rpx 0;
+  border-bottom: 1rpx solid #f2f4f2;
+}
+
+.book-item:active {
+  background-color: #fafbfa;
+}
+
+.book-item-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.book-item-title {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #1f2328;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.book-item-meta {
+  font-size: 22rpx;
+  color: #8a9096;
+  margin-top: 6rpx;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.book-item-isbn {
+  font-size: 20rpx;
+  color: #b3b8bd;
+  margin-top: 4rpx;
+}
+
+.book-item-tag {
+  flex-shrink: 0;
+  font-size: 20rpx;
+  color: #a8710a;
+  background-color: #fdf3e0;
+  border-radius: 6rpx;
+  padding: 4rpx 10rpx;
+  margin-left: 16rpx;
+}
+
+/* -------- 已选 -------- */
+.picked {
+  display: flex;
+  align-items: flex-start;
+  padding: 24rpx;
+  border-radius: 16rpx;
+  background-color: #f7f9f7;
+}
+
+.picked-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.picked-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #1f2328;
+}
+
+.picked-meta {
+  font-size: 22rpx;
+  color: #8a9096;
+  margin-top: 8rpx;
+}
+
+.picked-tags {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 12rpx;
+}
+
+.picked-price {
+  font-size: 24rpx;
+  color: #e2453c;
+  margin-top: 10rpx;
+}
+
+.picked-change {
+  flex-shrink: 0;
+  font-size: 24rpx;
+  color: #2f7d32;
+  padding-left: 16rpx;
+}
+
+/* -------- 品相 / 价格 -------- */
+.sub-label {
+  font-size: 26rpx;
+  color: #4a5055;
+  margin-bottom: 14rpx;
+}
+
+.sub-tip {
+  font-size: 22rpx;
+  color: #a4a9ae;
+  margin: -4rpx 0 24rpx;
+}
+
+.price-line {
+  display: flex;
+  align-items: center;
+  padding-top: 8rpx;
+}
+
+.price-line .sub-label {
+  margin-bottom: 0;
+  margin-right: 16rpx;
+}
+
+.price-input-box {
+  flex: 1;
+  height: 88rpx;
+  background-color: #f4f6f4;
+  border-radius: 12rpx;
+  display: flex;
+  align-items: center;
+  padding: 0 24rpx;
+  margin-right: 16rpx;
+  min-width: 0;
+}
+
+.price-prefix {
+  font-size: 32rpx;
+  color: #e2453c;
+  font-weight: 600;
+  margin-right: 8rpx;
+}
+
+.price-input {
+  flex: 1;
+  font-size: 40rpx;
+  color: #e2453c;
+  font-weight: 700;
+  min-width: 0;
+}
+
+.suggest-btn {
+  flex-shrink: 0;
+  height: 64rpx;
+  padding: 0 20rpx;
+  border-radius: 32rpx;
+  background-color: #e8f3e9;
+  color: #2f7d32;
+  font-size: 22rpx;
+  display: flex;
+  align-items: center;
+}
+
+.suggest-btn-off {
+  background-color: #f2f3f4;
+  color: #a4a9ae;
+}
+
+.index-card {
+  display: flex;
+  align-items: flex-start;
+  margin-top: 20rpx;
+  padding: 18rpx 20rpx;
+  border-radius: 12rpx;
+  background-color: #fff8ec;
+}
+
+.index-card-plain {
+  background-color: #f5f7f5;
+}
+
+.index-ico {
+  font-size: 24rpx;
+  color: #b07a1f;
+  margin-right: 10rpx;
+  line-height: 1.6;
+}
+
+.index-text {
+  flex: 1;
+  font-size: 23rpx;
+  color: #8a6a2a;
+  line-height: 1.6;
+}
+
+.index-card-plain .index-text {
+  color: #7b8085;
+}
+
+/* -------- 其他 -------- */
+.notice {
+  display: flex;
+  align-items: flex-start;
+  margin-top: 8rpx;
+  padding: 18rpx 20rpx;
+  border-radius: 12rpx;
+  background-color: #f5f7f5;
+}
+
+.notice-tag {
+  font-size: 20rpx;
+  color: #2f7d32;
+  background-color: #e8f3e9;
+  border-radius: 6rpx;
+  padding: 2rpx 10rpx;
+  margin-right: 12rpx;
+  flex-shrink: 0;
+  margin-top: 2rpx;
+}
+
+.notice-text {
+  flex: 1;
+  font-size: 22rpx;
+  color: #7b8085;
+  line-height: 1.6;
+}
+
+.placeholder {
+  margin: 40rpx 24rpx;
+  padding: 48rpx 32rpx;
+  border-radius: 20rpx;
+  background-color: #ffffff;
+  text-align: center;
+}
+
+.placeholder-title {
+  font-size: 28rpx;
+  color: #6b7075;
+}
+
+.placeholder-sub {
+  font-size: 23rpx;
+  color: #a4a9ae;
+  margin-top: 12rpx;
+  line-height: 1.6;
+}
+
+/* -------- 底栏 -------- */
+.bar-info {
+  flex: 1;
+  display: flex;
+  align-items: baseline;
+  padding-left: 8rpx;
+}
+
+.bar-label {
+  font-size: 22rpx;
+  color: #8a9096;
+  margin-right: 8rpx;
+}
+
+.bar-value {
+  font-size: 40rpx;
+  font-weight: 700;
+  color: #e2453c;
+}
+
+.bar-submit {
+  min-width: 260rpx;
+  height: 84rpx;
+  border-radius: 42rpx;
+  font-size: 30rpx;
+}

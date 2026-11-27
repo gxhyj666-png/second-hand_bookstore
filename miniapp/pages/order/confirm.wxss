@@ -1,0 +1,214 @@
+.goods {
+  display: flex;
+}
+
+.goods-cover {
+  width: 120rpx;
+  height: 160rpx;
+  border-radius: 10rpx;
+  background-image: linear-gradient(135deg, #3f8a43 0%, #245c28 100%);
+  color: #ffffff;
+  font-size: 32rpx;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.goods-body {
+  flex: 1;
+  min-width: 0;
+  padding-left: 20rpx;
+}
+
+.goods-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #1f2328;
+  line-height: 1.4;
+}
+
+.goods-meta {
+  font-size: 22rpx;
+  color: #8a9096;
+  margin-top: 8rpx;
+}
+
+.goods-dorm {
+  font-size: 22rpx;
+  color: #a4a9ae;
+  margin-top: 6rpx;
+}
+
+.goods-price {
+  font-size: 36rpx;
+  font-weight: 700;
+  color: #e2453c;
+  margin-top: 10rpx;
+}
+
+/* -------- 自提点 -------- */
+.point {
+  display: flex;
+  align-items: flex-start;
+  padding: 20rpx;
+  border-radius: 14rpx;
+  border: 1rpx solid #eef0ee;
+  margin-bottom: 16rpx;
+}
+
+.point-on {
+  border-color: #2f7d32;
+  background-color: #f4faf5;
+}
+
+.point-radio {
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: 50%;
+  border: 2rpx solid #c4c8cb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 16rpx;
+  margin-top: 4rpx;
+  flex-shrink: 0;
+}
+
+.point-on .point-radio {
+  border-color: #2f7d32;
+}
+
+.radio-dot {
+  width: 20rpx;
+  height: 20rpx;
+  border-radius: 50%;
+  background-color: #2f7d32;
+}
+
+.point-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.point-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.point-name {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #1f2328;
+}
+
+.point-distance {
+  font-size: 22rpx;
+  color: #2f7d32;
+  background-color: #e8f3e9;
+  border-radius: 6rpx;
+  padding: 2rpx 10rpx;
+  flex-shrink: 0;
+}
+
+.point-addr {
+  font-size: 23rpx;
+  color: #8a9096;
+  margin-top: 8rpx;
+}
+
+.point-time {
+  font-size: 22rpx;
+  color: #a4a9ae;
+  margin-top: 6rpx;
+}
+
+/* -------- 金额 -------- */
+.fee-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14rpx 0;
+}
+
+.fee-k {
+  font-size: 26rpx;
+  color: #6b7075;
+}
+
+.fee-k-strong {
+  font-size: 28rpx;
+  color: #1f2328;
+  font-weight: 500;
+}
+
+.fee-v {
+  font-size: 26rpx;
+  color: #1f2328;
+}
+
+.fee-total {
+  font-size: 40rpx;
+  font-weight: 700;
+  color: #e2453c;
+}
+
+/* -------- 担保 -------- */
+.notice {
+  display: flex;
+  align-items: flex-start;
+  padding: 8rpx 0;
+}
+
+.notice-dot {
+  width: 34rpx;
+  height: 34rpx;
+  border-radius: 50%;
+  background-color: #e8f3e9;
+  color: #2f7d32;
+  font-size: 20rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-right: 12rpx;
+  margin-top: 4rpx;
+}
+
+.notice-text {
+  flex: 1;
+  font-size: 24rpx;
+  color: #4a5055;
+  line-height: 1.65;
+}
+
+.pay-hint {
+  margin-top: 16rpx;
+  font-size: 21rpx;
+  color: #a4a9ae;
+  background-color: #f7f9f7;
+  border-radius: 10rpx;
+  padding: 14rpx 18rpx;
+}
+
+/* -------- 底栏 -------- */
+.bar-label {
+  font-size: 22rpx;
+  color: #8a9096;
+}
+
+.bar-amount {
+  font-size: 40rpx;
+  font-weight: 700;
+  color: #e2453c;
+  line-height: 1.2;
+}
+
+.bar-btn {
+  min-width: 320rpx;
+  height: 84rpx;
+  border-radius: 42rpx;
+  font-size: 30rpx;
+}

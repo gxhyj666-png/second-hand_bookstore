@@ -1,0 +1,93 @@
+<view class="page">
+
+  <!-- 顶部工作台 -->
+  <view class="desk">
+    <view class="desk-row">
+      <view>
+        <view class="desk-title">核销工作台</view>
+        <view class="desk-point">{{pointName}}</view>
+      </view>
+      <view class="desk-count">
+        <view class="desk-num">{{todayCount}}</view>
+        <view class="desk-unit">今日已核销</view>
+      </view>
+    </view>
+    <view class="desk-tip">核销码 30 秒刷新一次，过期后请买家在订单详情页等待新码</view>
+  </view>
+
+  <!-- 扫码 -->
+  <view class="card">
+    <view class="scan-box" bindtap="onScan">
+      <view class="scan-icon">
+        <view class="scan-corner scan-tl"></view>
+        <view class="scan-corner scan-tr"></view>
+        <view class="scan-corner scan-bl"></view>
+        <view class="scan-corner scan-br"></view>
+        <view class="scan-line"></view>
+      </view>
+      <view class="scan-text">扫描买家核销码</view>
+      <view class="scan-sub">也可扫描订单二维码，或手动输入</view>
+    </view>
+  </view>
+
+  <!-- 手动输入 -->
+  <view class="card">
+    <view class="card-hd">
+      <text class="t-md">手动核销</text>
+      <text class="muted">订单号 + 6 位核销码</text>
+    </view>
+    <view class="field">
+      <view class="field-label">订单号</view>
+      <input
+        class="field-input"
+        value="{{orderNo}}"
+        placeholder="如 TW20261127090012"
+        placeholder-class="ph"
+        maxlength="24"
+        bindinput="onOrderNoInput"
+      />
+    </view>
+    <view class="field">
+      <view class="field-label">核销码</view>
+      <input
+        class="field-input code-input"
+        value="{{code}}"
+        type="number"
+        placeholder="6 位数字"
+        placeholder-class="ph"
+        maxlength="6"
+        bindinput="onCodeInput"
+      />
+    </view>
+    <view class="btn btn-primary btn-block submit-btn" bindtap="onSubmit">
+      {{submitting ? '核销中…' : '确认核销'}}
+    </view>
+    <view class="mock-tip" wx:if="{{isMock}}">演示提示：核销码可从买家手机屏幕读取；演示可用万能码 888888</view>
+  </view>
+
+  <!-- 今日记录 -->
+  <view class="card" wx:if="{{records.length > 0}}">
+    <view class="card-hd">
+      <text class="t-md">今日核销记录</text>
+      <text class="muted">共 {{records.length}} 单</text>
+    </view>
+    <view class="rec" wx:for="{{records}}" wx:key="orderNo">
+      <view class="rec-cover">书</view>
+      <view class="rec-body">
+        <view class="rec-title">{{item.title}}</view>
+        <view class="rec-meta">{{item.orderNo}}</view>
+      </view>
+      <view class="rec-right">
+        <view class="rec-amount">¥{{item.amountText}}</view>
+        <view class="rec-time">{{item.verifiedAtText}}</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="card empty-hint" wx:else>
+    <view class="empty-title">今天还没有核销记录</view>
+    <view class="empty-sub">买家到店出示核销码后，扫描即可完成核销</view>
+  </view>
+
+  <view class="safe-bottom"></view>
+</view>

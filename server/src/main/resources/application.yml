@@ -1,0 +1,42 @@
+server:
+  port: 8088
+
+spring:
+  application:
+    name: textbook-loop
+  profiles:
+    active: dev
+  jackson:
+    default-property-inclusion: always
+    time-zone: Asia/Shanghai
+  servlet:
+    encoding:
+      charset: UTF-8
+      force: true
+  mvc:
+    problemdetails:
+      enabled: false
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    banner: false
+    db-config:
+      id-type: auto
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+app:
+  jwt-secret: ${APP_JWT_SECRET:textbook-loop-dev-secret-change-me-0123456789abcdef}
+  jwt-ttl-hours: 168
+  order-expire-minutes: 15
+  commission-rate: 0.05
+  verify-secret: ${APP_VERIFY_SECRET:textbook-loop-verify-secret-0123456789}
+  verify-window-seconds: 30
+
+logging:
+  level:
+    com.textbook.loop: info

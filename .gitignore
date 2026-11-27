@@ -1,0 +1,37 @@
+# 构建产物
+target/
+dist/
+build/
+*.jar
+*.war
+*.class
+
+# 依赖
+node_modules/
+.pnpm-store/
+
+# 本地数据库与日志
+data/
+*.mv.db
+*.trace.db
+logs/
+*.log
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.swp
+
+# 系统
+.DS_Store
+Thumbs.db
+
+# 小程序开发者工具本地配置
+project.private.config.json
+miniapp/project.private.config.json
+
+# 环境与密钥
+.env
+.env.local
+*.pem

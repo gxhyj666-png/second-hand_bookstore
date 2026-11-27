@@ -1,0 +1,188 @@
+.login-page {
+  padding: 0 44rpx;
+}
+
+/* -------- 品牌 -------- */
+.brand {
+  padding: 70rpx 0 40rpx;
+  text-align: center;
+}
+
+.logo {
+  width: 132rpx;
+  height: 132rpx;
+  margin: 0 auto;
+  border-radius: 32rpx;
+  background-image: linear-gradient(135deg, #4c9a50 0%, #2a5f2d 100%);
+  color: #ffffff;
+  font-size: 58rpx;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 12rpx 28rpx rgba(47, 125, 50, 0.24);
+}
+
+.brand-name {
+  font-size: 46rpx;
+  font-weight: 700;
+  color: #1f2328;
+  letter-spacing: 4rpx;
+  margin-top: 24rpx;
+}
+
+.brand-slogan {
+  font-size: 22rpx;
+  color: #9aa0a6;
+  margin-top: 14rpx;
+  line-height: 1.6;
+}
+
+/* -------- 切换 -------- */
+.mode {
+  display: flex;
+  justify-content: center;
+  margin: 20rpx 0 30rpx;
+}
+
+.mode-item {
+  font-size: 30rpx;
+  color: #9aa0a6;
+  padding: 0 32rpx 12rpx;
+  position: relative;
+}
+
+.mode-on {
+  color: #2f7d32;
+  font-weight: 600;
+}
+
+.mode-on::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  width: 44rpx;
+  height: 6rpx;
+  border-radius: 3rpx;
+  background-color: #2f7d32;
+}
+
+/* -------- 表单 -------- */
+.form {
+  background-color: #ffffff;
+  border-radius: 20rpx;
+  padding: 8rpx 24rpx 20rpx;
+}
+
+.pwd-row {
+  display: flex;
+  align-items: center;
+}
+
+.pwd-input {
+  flex: 1;
+}
+
+.pwd-toggle {
+  font-size: 23rpx;
+  color: #2f7d32;
+  padding-left: 16rpx;
+  flex-shrink: 0;
+}
+
+/* -------- 协议 -------- */
+.agree-row {
+  display: flex;
+  align-items: flex-start;
+  margin: 26rpx 4rpx 0;
+}
+
+.checkbox {
+  width: 30rpx;
+  height: 30rpx;
+  border-radius: 8rpx;
+  border: 2rpx solid #d5dad6;
+  margin-top: 2rpx;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.checkbox-on {
+  background-color: #2f7d32;
+  border-color: #2f7d32;
+  position: relative;
+}
+
+.checkbox-on::after {
+  content: "";
+  position: absolute;
+  left: 8rpx;
+  top: 3rpx;
+  width: 8rpx;
+  height: 15rpx;
+  border-right: 3rpx solid #ffffff;
+  border-bottom: 3rpx solid #ffffff;
+  transform: rotate(45deg);
+}
+
+.agree-text {
+  font-size: 21rpx;
+  color: #9aa0a6;
+  line-height: 1.6;
+  padding-left: 12rpx;
+}
+
+.link {
+  color: #2f7d32;
+}
+
+.submit {
+  margin-top: 32rpx;
+}
+
+/* -------- 演示账号 -------- */
+.demo {
+  margin-top: 46rpx;
+}
+
+.demo-title {
+  font-size: 21rpx;
+  color: #b3b8bd;
+  text-align: center;
+  margin-bottom: 18rpx;
+}
+
+.demo-list {
+  display: flex;
+}
+
+.demo-item {
+  flex: 1;
+  background-color: #ffffff;
+  border-radius: 14rpx;
+  padding: 18rpx 8rpx;
+  text-align: center;
+  margin: 0 8rpx;
+}
+
+.demo-account {
+  font-size: 24rpx;
+  font-weight: 600;
+  color: #2f7d32;
+}
+
+.demo-label {
+  font-size: 18rpx;
+  color: #9aa0a6;
+  margin-top: 8rpx;
+}
+
+.foot-tip {
+  margin: 50rpx 0 60rpx;
+  font-size: 20rpx;
+  color: #c1c6c2;
+  text-align: center;
+  line-height: 1.7;
+}

@@ -1,0 +1,92 @@
+<view class="page">
+
+  <!-- 角色切换 -->
+  <view class="role-bar">
+    <view
+      class="role-item {{role === item.key ? 'role-on' : ''}}"
+      wx:for="{{roles}}"
+      wx:key="key"
+      bindtap="switchRole"
+      data-role="{{item.key}}"
+    >{{item.label}}</view>
+  </view>
+
+  <!-- 状态 tab -->
+  <view class="tabs">
+    <view
+      class="tab {{activeIndex === index ? 'tab-on' : ''}}"
+      wx:for="{{tabs}}"
+      wx:key="key"
+      bindtap="switchTab"
+      data-index="{{index}}"
+    >
+      <text class="tab-label">{{item.label}}</text>
+      <view class="tab-line" wx:if="{{activeIndex === index}}"></view>
+    </view>
+  </view>
+
+  <view class="skeleton" wx:if="{{loading && orders.length === 0}}">
+    <view class="sk-row" wx:for="{{[1, 2]}}" wx:key="*this"></view>
+  </view>
+
+  <!-- 订单列表 -->
+  <view class="list">
+    <view class="order" wx:for="{{orders}}" wx:key="orderNo" bindtap="onOrderTap" data-no="{{item.orderNo}}">
+      <view class="order-head">
+        <text class="order-no">{{item.orderNo}}</text>
+        <text class="order-status status-{{item.statusTone}}">{{item.statusText}}</text>
+      </view>
+
+      <view class="order-goods">
+        <view class="goods-cover">书</view>
+        <view class="goods-body">
+          <view class="goods-title">{{item.listing ? item.listing.title : '订单商品'}}</view>
+          <view class="goods-meta" wx:if="{{item.listing}}">{{item.listing.edition}} · {{item.listing.conditionText}}</view>
+          <view class="goods-point" wx:if="{{item.point}}">自提点：{{item.point.name}}</view>
+        </view>
+        <view class="goods-price">¥{{item.amountText}}</view>
+      </view>
+
+      <view class="order-foot">
+        <text class="order-time">{{item.createdAtText}}</text>
+        <view class="order-actions">
+          <view
+            class="btn btn-sm btn-ghost"
+            wx:if="{{item.canPay}}"
+            catchtap="onPay"
+            data-no="{{item.orderNo}}"
+          >去支付</view>
+          <view
+            class="btn btn-sm btn-ghost"
+            wx:if="{{item.status === 'WAIT_VERIFY' || item.status === 'FROZEN'}}"
+          >查看核销码</view>
+          <view
+            class="btn btn-sm btn-primary"
+            wx:if="{{item.canReview}}"
+            catchtap="onReview"
+            data-no="{{item.orderNo}}"
+          >评价</view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <empty
+    wx:if="{{logged && !loading && orders.length === 0}}"
+    text="{{role === 'buyer' ? '还没有订单' : '还没有卖出的书'}}"
+    sub="{{role === 'buyer' ? '去首页挑一本同校的教材吧' : '把书架挂上平台，等同学来买'}}"
+  ></empty>
+
+  <empty
+    wx:if="{{!logged}}"
+    text="登录后查看订单"
+    sub="订单、核销码与评价都跟着账号走"
+    action-text="去登录"
+    bind:action="goLogin"
+  ></empty>
+
+  <view class="load-more" wx:if="{{orders.length > 0}}">
+    {{hasMore ? '上拉加载更多' : '没有更多订单了'}}
+  </view>
+
+</view>

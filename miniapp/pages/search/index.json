@@ -1,0 +1,8 @@
+{
+  "navigationBarTitleText": "搜索教材",
+  "backgroundTextStyle": "dark",
+  "usingComponents": {
+    "book-card": "/components/book-card/book-card",
+    "empty": "/components/empty/empty"
+  }
+}

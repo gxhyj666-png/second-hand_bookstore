@@ -1,0 +1,10 @@
+<view class="empty">
+  <view class="empty-ill">
+    <view class="empty-book empty-book-a"></view>
+    <view class="empty-book empty-book-b"></view>
+    <view class="empty-book empty-book-c"></view>
+  </view>
+  <view class="empty-text">{{text}}</view>
+  <view class="empty-sub" wx:if="{{sub}}">{{sub}}</view>
+  <view class="empty-btn" wx:if="{{actionText}}" bindtap="onAction">{{actionText}}</view>
+</view>
