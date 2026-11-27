@@ -78,6 +78,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\setup-dev.ps1
 | **Admin dev (Vite)** | `admin/` 下 `pnpm dev`（默认 mock 数据） | 5173 |
 | **Dev all** | 上面「Backend dev (H2)」+「Web dev (Vite)」组合启动 | 8088 + 5174 |
 
+> 💡 **运行配置里的包管理器是 `npm`，不是 pnpm**：IDEA 的 npm 运行配置需要能解析到包管理器可执行文件，
+而有些机器上 pnpm 只存在于 corepack / 第三方包装器里，IDEA 会报「无法解析 'pnpm' 软件包管理器」。
+这两个配置只是执行 `package.json` 里的 `dev` 脚本（实际调用本地 `node_modules/.bin/vite`），用 Node 自带的
+`npm` 一样能跑；**依赖仍由 `pnpm install` 安装**，两者不冲突。
+若本机确实装了全局 pnpm 且想让 IDEA 用它：`Settings > Languages & Frameworks > Node.js > Package manager` 指定 pnpm 路径。
 > ⚠️ **后端工作目录必须是仓库根**。`application-dev.yml` 里 H2 是 `jdbc:h2:file:./data/textbook_loop`，相对**进程工作目录**解析；如果工作目录设成 `server/`，数据库会跑到 `server/data/`，出现「换了个库、数据不见了」。`.run` 配置已经把 `WORKING_DIRECTORY` 写成 `$PROJECT_DIR$`，不要改。
 
 ## 4. 启动后验证
