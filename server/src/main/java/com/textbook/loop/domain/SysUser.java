@@ -22,7 +22,7 @@ public class SysUser implements Serializable {
     @TableId(type = IdType.AUTO)
     private Long id;
 
-    /** 微信 openid */
+    /** 微信 openid（未绑定微信时为 NULL，唯一索引允许多个 NULL） */
     private String openid;
 
     /** 昵称 */
@@ -55,10 +55,37 @@ public class SysUser implements Serializable {
     /** 宿舍楼/房间，用于距离排序 */
     private String dorm;
 
+    /** 身份证号（对外脱敏） */
+    private String idNo;
+
+    /** 实名认证：0 否 1 是 */
+    private Integer idVerified;
+
+    /** 人脸核身：0 否 1 是 */
+    private Integer faceVerified;
+
+    /** 学生认证：0 否 1 是 */
+    private Integer studentVerified;
+
+    /** 身份证人像面图片 */
+    private String idCardFront;
+
+    /** 身份证国徽面图片 */
+    private String idCardBack;
+
+    /** 学生证封面图片 */
+    private String studentCardCover;
+
+    /** 学生证信息页图片 */
+    private String studentCardInfo;
+
+    /** 所属商户 ID，0 表示个人卖家 */
+    private Long merchantId;
+
     /** 信用分，默认 100 */
     private Integer creditScore;
 
-    /** STUDENT/LEADER/CLERK/ADMIN */
+    /** STUDENT/LEADER/MERCHANT/ADMIN */
     private String role;
 
     /** UNVERIFIED/PENDING/VERIFIED/REJECTED */

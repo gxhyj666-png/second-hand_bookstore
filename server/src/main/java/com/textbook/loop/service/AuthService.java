@@ -23,12 +23,15 @@ public class AuthService {
     private final SysUserMapper userMapper;
     private final UserAuthMapper authMapper;
     private final JwtUtil jwtUtil;
+    private final SmsService smsService;
     private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
 
-    public AuthService(SysUserMapper userMapper, UserAuthMapper authMapper, JwtUtil jwtUtil) {
+    public AuthService(SysUserMapper userMapper, UserAuthMapper authMapper, JwtUtil jwtUtil,
+                       SmsService smsService) {
         this.userMapper = userMapper;
         this.authMapper = authMapper;
         this.jwtUtil = jwtUtil;
+        this.smsService = smsService;
     }
 
     @Transactional
@@ -104,6 +107,40 @@ public class AuthService {
         return issueFor(user.getId());
     }
 
+
+    /**
+     * 短信验证码登录：所有用户统一走这里；手机号未注册时自动建号（学生身份，待实名/学生认证后才能交易）。
+     */
+    @Transactional
+    public TokenView smsLogin(String phone, String code) {
+        if (phone == null || !phone.matches("^1\\d{10}$")) {
+            throw BizException.badRequest("手机号格式不正确");
+        }
+        smsService.verify(phone, "LOGIN", code);
+        SysUser user = userMapper.selectOne(new LambdaQueryWrapper<SysUser>()
+                .eq(SysUser::getPhone, phone).last("limit 1"));
+        if (user == null) {
+            user = new SysUser();
+            user.setNickname("同学" + phone.substring(7));
+            user.setPhone(phone);
+            user.setSchoolId(1L);
+            user.setCreditScore(100);
+            user.setRole("STUDENT");
+            user.setVerifyState("UNVERIFIED");
+            user.setStatus("NORMAL");
+            user.setLastLogin(LocalDateTime.now());
+            userMapper.insert(user);
+
+            UserAuth auth = new UserAuth();
+            auth.setUserId(user.getId());
+            auth.setAuthType("SMS");
+            auth.setIdentifier(phone);
+            auth.setCredential("");
+            auth.setVerified(1);
+            authMapper.insert(auth);
+        }
+        return issueFor(user.getId());
+    }
     private TokenView issueFor(Long userId) {
         SysUser user = userMapper.selectById(userId);
         if (user == null) {
@@ -156,3 +193,4 @@ public class AuthService {
         return user;
     }
 }
+

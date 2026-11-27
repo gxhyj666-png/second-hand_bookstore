@@ -43,8 +43,17 @@ CREATE TABLE sys_user (
     major        VARCHAR(64)  NOT NULL DEFAULT '' COMMENT '专业',
     grade        VARCHAR(16)  NOT NULL DEFAULT '' COMMENT '年级 如 2023',
     dorm         VARCHAR(64)  NOT NULL DEFAULT '' COMMENT '宿舍楼/房间，用于距离排序',
+    id_no        VARCHAR(32)  NOT NULL DEFAULT '' COMMENT '身份证号（对外脱敏）',
+    id_verified  TINYINT      NOT NULL DEFAULT 0 COMMENT '实名认证：0 否 1 是',
+    face_verified TINYINT     NOT NULL DEFAULT 0 COMMENT '人脸核身：0 否 1 是',
+    student_verified TINYINT  NOT NULL DEFAULT 0 COMMENT '学生认证：0 否 1 是',
+    id_card_front VARCHAR(255) NOT NULL DEFAULT '' COMMENT '身份证人像面图片',
+    id_card_back  VARCHAR(255) NOT NULL DEFAULT '' COMMENT '身份证国徽面图片',
+    student_card_cover VARCHAR(255) NOT NULL DEFAULT '' COMMENT '学生证封面图片',
+    student_card_info  VARCHAR(255) NOT NULL DEFAULT '' COMMENT '学生证信息页图片',
+    merchant_id  BIGINT       NOT NULL DEFAULT 0 COMMENT '所属商户 ID，0 表示个人卖家',
     credit_score INT          NOT NULL DEFAULT 100 COMMENT '信用分，默认 100',
-    role         VARCHAR(16)  NOT NULL DEFAULT 'STUDENT' COMMENT 'STUDENT/LEADER/CLERK/ADMIN',
+    role         VARCHAR(16)  NOT NULL DEFAULT 'STUDENT' COMMENT 'STUDENT/LEADER/MERCHANT/ADMIN',
     verify_state VARCHAR(16)  NOT NULL DEFAULT 'UNVERIFIED' COMMENT 'UNVERIFIED/PENDING/VERIFIED/REJECTED',
     status       VARCHAR(16)  NOT NULL DEFAULT 'NORMAL' COMMENT 'NORMAL/FROZEN',
     last_login   DATETIME     NULL COMMENT '最后登录时间',
@@ -149,6 +158,7 @@ CREATE TABLE sys_course_textbook (
 CREATE TABLE biz_listing (
     id             BIGINT       NOT NULL AUTO_INCREMENT,
     seller_id      BIGINT       NOT NULL COMMENT '卖家',
+    merchant_id    BIGINT       NOT NULL DEFAULT 0 COMMENT '所属商户 ID，0 表示个人卖家',
     textbook_id    BIGINT       NOT NULL COMMENT '教材 ID',
     course_id      BIGINT       NOT NULL DEFAULT 0 COMMENT '关联课程（用于同课匹配）',
     title          VARCHAR(160) NOT NULL COMMENT '展示标题（书名+版次）',
@@ -215,8 +225,14 @@ CREATE TABLE biz_orders (
     point_id       BIGINT       NOT NULL COMMENT '自提点',
     amount         DECIMAL(10,2) NOT NULL COMMENT '商品金额',
     commission     DECIMAL(10,2) NOT NULL DEFAULT 0.00 COMMENT '平台服务费',
-    status         VARCHAR(16)  NOT NULL DEFAULT 'PENDING_PAY' COMMENT 'PENDING_PAY/FROZEN/WAIT_VERIFY/VERIFIED/SETTLED/REFUNDED/CLOSED',
-    verify_code    VARCHAR(64)  NOT NULL DEFAULT '' COMMENT '核销码（HMAC 生成，30s 轮换）',
+    status         VARCHAR(16)  NOT NULL DEFAULT 'PENDING_PAY' COMMENT 'PENDING_PAY/WAIT_VERIFY/COMPLETED/REFUNDING/REFUND_AGREED/REFUNDED/ARBITRATING/CLOSED（旧值 FROZEN/VERIFIED/SETTLED 兼容读取）',
+    verify_code    VARCHAR(16)  NOT NULL DEFAULT '' COMMENT '6 位随机核销码，买家出示、卖家输入',
+    verify_expire_at DATETIME   NULL COMMENT '核销码有效期（生成后 15 分钟）',
+    meet_place     VARCHAR(128) NOT NULL DEFAULT '' COMMENT '交易地点（双方确认）',
+    meet_time      DATETIME     NULL COMMENT '交易时间（双方确认）',
+    sign_photo_url VARCHAR(255) NOT NULL DEFAULT '' COMMENT '线下交易签到照片（卖家上传）',
+    sign_at        DATETIME     NULL COMMENT '签到时间',
+    merchant_id    BIGINT       NOT NULL DEFAULT 0 COMMENT '商户订单所属商户 ID，0 为个人',
     pay_channel    VARCHAR(16)  NOT NULL DEFAULT 'MOCK' COMMENT 'WECHAT/MOCK',
     trade_no       VARCHAR(64)  NOT NULL DEFAULT '' COMMENT '第三方支付流水号',
     remark         VARCHAR(255) NOT NULL DEFAULT '',
@@ -225,6 +241,7 @@ CREATE TABLE biz_orders (
     paid_at        DATETIME     NULL,
     verified_at    DATETIME     NULL,
     settled_at     DATETIME     NULL,
+    completed_at   DATETIME     NULL COMMENT '交易完成时间（核销后）',
     closed_at      DATETIME     NULL,
     created_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -485,3 +502,167 @@ CREATE TABLE sys_admin_log (
     PRIMARY KEY (id),
     KEY idx_admin_time (admin_id, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='后台操作日志';
+
+-- -----------------------------------------------------------------------------
+-- 24. 短信验证码（登录 / 交易二次验证；生产接入阿里云 SMS，开发走 mock）
+-- -----------------------------------------------------------------------------
+CREATE TABLE sys_sms_code (
+    id         BIGINT      NOT NULL AUTO_INCREMENT,
+    phone      VARCHAR(20) NOT NULL,
+    code       VARCHAR(8)  NOT NULL,
+    purpose    VARCHAR(16) NOT NULL DEFAULT 'LOGIN' COMMENT 'LOGIN/TRADE',
+    expire_at  DATETIME    NOT NULL,
+    used       TINYINT     NOT NULL DEFAULT 0,
+    created_at DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_phone_purpose (phone, purpose, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='短信验证码';
+
+-- -----------------------------------------------------------------------------
+-- 25. 认证审核记录（实名 / 学生 / 人脸，便于追溯三方调用结果）
+-- -----------------------------------------------------------------------------
+CREATE TABLE sys_verify_record (
+    id          BIGINT       NOT NULL AUTO_INCREMENT,
+    user_id     BIGINT       NOT NULL,
+    verify_type VARCHAR(16)  NOT NULL COMMENT 'ID_CARD/STUDENT/FACE',
+    status      VARCHAR(16)  NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING/PASS/REJECT',
+    provider    VARCHAR(32)  NOT NULL DEFAULT 'MOCK' COMMENT 'ALIYUN/MOCK',
+    payload     VARCHAR(500) NOT NULL DEFAULT '' COMMENT '请求摘要（脱敏）',
+    result      VARCHAR(500) NOT NULL DEFAULT '' COMMENT '三方返回摘要',
+    created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_user_type (user_id, verify_type)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='认证审核记录';
+
+-- -----------------------------------------------------------------------------
+-- 26. 商户（可供书籍量大的商家入驻，批量上下架）
+-- -----------------------------------------------------------------------------
+CREATE TABLE sys_merchant (
+    id          BIGINT       NOT NULL AUTO_INCREMENT,
+    user_id     BIGINT       NOT NULL COMMENT '商户主账号',
+    shop_name   VARCHAR(64)  NOT NULL,
+    license_url VARCHAR(255) NOT NULL DEFAULT '' COMMENT '营业执照/校园代理授权',
+    contact     VARCHAR(64)  NOT NULL DEFAULT '',
+    status      VARCHAR(16)  NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING/APPROVED/REJECTED/FROZEN',
+    reject_reason VARCHAR(255) NOT NULL DEFAULT '',
+    approved_by BIGINT       NOT NULL DEFAULT 0,
+    approved_at DATETIME     NULL,
+    listing_count INT        NOT NULL DEFAULT 0 COMMENT '在架数量（冗余，批量操作后刷新）',
+    created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted     TINYINT      NOT NULL DEFAULT 0,
+    PRIMARY KEY (id),
+    KEY idx_user (user_id),
+    KEY idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='商户';
+
+-- -----------------------------------------------------------------------------
+-- 27. 商品图片（扫码录入后按规范上传：封面/封底/出版日期页/随机四页正文）
+-- -----------------------------------------------------------------------------
+CREATE TABLE biz_listing_photo (
+    id         BIGINT       NOT NULL AUTO_INCREMENT,
+    listing_id BIGINT       NOT NULL,
+    photo_type VARCHAR(16)  NOT NULL COMMENT 'COVER/BACK/PUBDATE/PAGE',
+    page_no    INT          NOT NULL DEFAULT 0 COMMENT '正文页码（PAGE 类型）',
+    url        VARCHAR(255) NOT NULL,
+    sort_no    INT          NOT NULL DEFAULT 0,
+    created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_listing (listing_id, photo_type)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='商品图片';
+
+-- -----------------------------------------------------------------------------
+-- 28. 交易/退货的时间地点确认（任一方发起，另一方确认）
+-- -----------------------------------------------------------------------------
+CREATE TABLE biz_meet (
+    id           BIGINT       NOT NULL AUTO_INCREMENT,
+    order_id     BIGINT       NOT NULL,
+    meet_type    VARCHAR(16)  NOT NULL DEFAULT 'TRADE' COMMENT 'TRADE/RETURN',
+    proposer_id  BIGINT       NOT NULL,
+    place        VARCHAR(128) NOT NULL,
+    meet_time    DATETIME     NOT NULL,
+    remark       VARCHAR(255) NOT NULL DEFAULT '',
+    status       VARCHAR(16)  NOT NULL DEFAULT 'PROPOSED' COMMENT 'PROPOSED/CONFIRMED/CANCELED',
+    confirmed_at DATETIME     NULL,
+    created_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_order (order_id, meet_type, status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='交易时间地点确认';
+
+-- -----------------------------------------------------------------------------
+-- 29. 退款退货单（协商 → 平台介入）
+-- -----------------------------------------------------------------------------
+CREATE TABLE biz_refund (
+    id               BIGINT        NOT NULL AUTO_INCREMENT,
+    order_id         BIGINT        NOT NULL,
+    applicant_id     BIGINT        NOT NULL COMMENT '申请方（通常买家）',
+    reason           VARCHAR(255)  NOT NULL,
+    evidence_url     VARCHAR(255)  NOT NULL DEFAULT '' COMMENT '凭证照片',
+    amount           DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    status           VARCHAR(16)   NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING/AGREED/REJECTED/ARBITRATING/ARBITRATED',
+    platform_verdict VARCHAR(16)   NOT NULL DEFAULT '' COMMENT 'PLATFORM_OK（货物无问题）/SELLER_FAULT',
+    platform_remark  VARCHAR(255)  NOT NULL DEFAULT '',
+    decided_by       BIGINT        NOT NULL DEFAULT 0,
+    decided_at       DATETIME      NULL,
+    refunded_at      DATETIME      NULL,
+    created_at       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_order (order_id),
+    KEY idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='退款退货单';
+
+-- -----------------------------------------------------------------------------
+-- 30. 爽约上报（未按约定出现且未沟通，每次扣 5 信誉分）
+-- -----------------------------------------------------------------------------
+CREATE TABLE biz_no_show (
+    id          BIGINT       NOT NULL AUTO_INCREMENT,
+    order_id    BIGINT       NOT NULL,
+    reporter_id BIGINT       NOT NULL,
+    target_id   BIGINT       NOT NULL,
+    photo_url   VARCHAR(255) NOT NULL DEFAULT '',
+    description VARCHAR(255) NOT NULL DEFAULT '',
+    credit_delta INT         NOT NULL DEFAULT -5,
+    status      VARCHAR(16)  NOT NULL DEFAULT 'VALID' COMMENT 'VALID/REVOKED',
+    created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_order (order_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='爽约上报';
+
+-- -----------------------------------------------------------------------------
+-- 31. 会话（买卖双方围绕商品私信；下单后锁定订单聊天）
+-- -----------------------------------------------------------------------------
+CREATE TABLE biz_conversation (
+    id            BIGINT       NOT NULL AUTO_INCREMENT,
+    listing_id    BIGINT       NOT NULL,
+    buyer_id      BIGINT       NOT NULL,
+    seller_id     BIGINT       NOT NULL,
+    order_id      BIGINT       NOT NULL DEFAULT 0,
+    last_message  VARCHAR(255) NOT NULL DEFAULT '',
+    last_at       DATETIME     NULL,
+    buyer_unread  INT          NOT NULL DEFAULT 0,
+    seller_unread INT          NOT NULL DEFAULT 0,
+    created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_listing_buyer (listing_id, buyer_id),
+    KEY idx_buyer (buyer_id, last_at),
+    KEY idx_seller (seller_id, last_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='会话';
+
+-- -----------------------------------------------------------------------------
+-- 32. 消息（文本 / 时间地点确认卡片 / 退款卡片 / 签到卡片）
+-- -----------------------------------------------------------------------------
+CREATE TABLE biz_message (
+    id              BIGINT       NOT NULL AUTO_INCREMENT,
+    conversation_id BIGINT       NOT NULL,
+    sender_id       BIGINT       NOT NULL,
+    msg_type        VARCHAR(16)  NOT NULL DEFAULT 'TEXT' COMMENT 'TEXT/MEET_CARD/REFUND_CARD/SIGN_CARD',
+    content         VARCHAR(1000) NOT NULL DEFAULT '',
+    ref_id          BIGINT       NOT NULL DEFAULT 0 COMMENT '关联的 meet/refund 主键',
+    read_flag       TINYINT      NOT NULL DEFAULT 0,
+    created_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_conv (conversation_id, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='消息';

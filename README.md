@@ -95,36 +95,41 @@ cd admin && pnpm install && pnpm dev     # http://localhost:5173，默认 mock �
 
 ## 演示账号
 
-| 账号 | 密码 | 角色 | 能做什么 |
+| 手机号 | 密码（兼容登录） | 角色 | 能做什么 |
 | --- | --- | --- | --- |
-| `13800000001` | `admin123` | ADMIN 管理员 | 后台看板、审核、冻结用户、处理工单 |
-| `13800000002` | `123456` | STUDENT 张同学 | 浏览、下单、评价 |
-| `13800000003` | `123456` | STUDENT 李同学 | 发布商品（示例商品卖家） |
-| `13800000004` | `123456` | CLERK 王书店 | 图书馆西门自提点核销 |
+| `13800000001` | `admin123` | ADMIN 管理员 | 后台看板、商户审核、平台介入判定、冻结用户 |
+| `13800000002` | `123456` | STUDENT 张同学 | 浏览、下单、出示核销码、申请退款、私信卖家 |
+| `13800000003` | `123456` | STUDENT 李同学 | 发布商品（示例商品卖家）、核销、同意/拒绝退款 |
+| `13800000004` | `123456` | STUDENT 王同学 | 普通买家，用于制造交易对手 |
 | `13800000005` | `123456` | LEADER 陈班长 | 发起班级接龙（示例接龙码 `JY2026`） |
 
-登录：`POST /v1/auth/login`，body `{"account":"13800000002","password":"123456"}`，
-返回 `{code:0,message:"ok",data:{token,user}}`；后续请求带 `Authorization: Bearer <token>`。
+> 本版按打磨要求把**登录统一改成短信验证码**：
+> `POST /v1/auth/sms-code {"phone":"13800000002"}` → 返回 `{devCode}`（dev 的 `app.mock-sms=true` 不做真实发送，
+> 验证码随响应回传，方便演示）→ `POST /v1/auth/sms-login {"phone":"13800000002","code":"<devCode>"}`。
+> 账号密码登录 `POST /v1/auth/login {"account":"13800000002","password":"123456"}` 仍保留，后台与脚本兜底用。
+> 演示用户已在种子数据里置为「实名 + 学生」双认证通过，否则下单会被交易闸门挡住。
 
 ## 主流程演示（一条命令跑完）
 
 ```powershell
-# Windows 推荐（Windows 10/11 自带，无需安装 PowerShell 7）
+# 1) 主链路（短信登录 → 发布含 7 张照片 → 下单 → 支付 → 取核销码 → 约见 → 卖家核销 → 双边评价 → 信用分）
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\smoke.ps1
 
-# 完整链路（含双边评价、信用分、未读消息），建议答辩前一天跑一遍
-powershell -NoProfile -ExecutionPolicy Bypass -File tools\e2e-full.ps1
+# 2) 打磨链路（ISBN、认证、退款两条分支、平台介入、私信、商户入驻与批量上架）
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\e2e-trade.ps1
 
 # macOS / Linux
 bash tools/smoke.sh
 ```
 
-`smoke.ps1` 走 14 个断言（当前实测 **14 通过 / 0 失败**）：健康检查 → 管理员看板 → 学生查课程/教材 → 检索 →
-详情与价格指数 → 推荐 → 下单（含幂等）→ 支付（资金冻结）→ 待核销 → 取动态核销码 → 店员核销 → 结算与信用分。
+`smoke.ps1` 走 **17 个断言（实测 17 通过 / 0 失败）**：健康检查 → 三个角色短信登录 → 游客检索 →
+详情与价格指数 → 公开推荐 → 买家发布商品并上传 7 张照片 → 下单（幂等）→ 支付 → 买家出示 6 位核销码（15 分钟）→
+卖家发起约见、买家确认 → 卖家核销并上传签到照 → 双边评价 → 信用分与信用记录 → 未读消息 → 管理员看板与商户列表。
 **这是答辩最值得演示的一条链路。**
 
-`e2e-full.ps1` 在此基础上补齐「双边评价 → 信用记录 → 未读消息」，
-用来防止「订单能走完但评价/信用分写不进去」这类隐性回归。
+`e2e-trade.ps1` 走 **21 个断言（实测 21 通过 / 0 失败）**，覆盖打磨清单里的纠纷分支：
+ISBN 查询（命中/未命中）→ 实名学生认证状态 → 下单并完成 → 申请退款 → 卖家同意 → 买家确认退货 → 订单退款；
+第二笔走「卖家拒绝退款 → 买家申请平台介入 → 管理员判定卖家责任 → 强制退款」；再验证私信收发与商户入驻审核、批量上架。
 两个脚本都要求后端已在 `http://127.0.0.1:8088` 运行。
 
 ## 目录结构
@@ -132,19 +137,21 @@ bash tools/smoke.sh
 ```
 second-hand_bookstore/
 ├── db/
-│   ├── schema.sql          # MySQL 8 正式 DDL（24 张表，说明见 docs/02-数据库设计.md）
+│   ├── schema.sql          # MySQL 8 正式 DDL（33 张表，说明见 docs/02-数据库设计.md）
 │   └── seed.sql            # 纯 SQL 示例数据（后端已有 DataInitializer，二选一）
 ├── docs/
 │   ├── 01-项目模块介绍.md   # 模块划分 / 功能点 / 技术难点
 │   ├── 02-数据库设计.md     # 表结构、字段、索引与设计取舍
 │   ├── 03-问卷设计与统计口径.md
 │   ├── 04-调研实施计划.md
+│   ├── 06-终端形态说明.md   # 为什么先做响应式 Web、APK 怎么出
+│   ├── 07-需求对齐与改造清单.md  # 打磨需求逐条对照与差距
 │   └── word/               # 上述四份文档的 Word 版（交作业/答辩直接打印）
 ├── server/                 # Spring Boot 后端
 │   └── src/main/java/com/textbook/loop/
 │       ├── controller/     # REST 控制器
 │       ├── service/        # 业务逻辑（订单状态机、核销、接龙、评价…）
-│       ├── domain/         # 24 个实体（与 db/schema.sql 一一对应）
+│       ├── domain/         # 33 个实体（与 db/schema.sql 一一对应）
 │       ├── mapper/         # MyBatis-Plus Mapper
 │       ├── security/       # JWT、登录上下文、拦截器
 │       ├── bootstrap/      # 首次启动灌示例数据
@@ -185,10 +192,12 @@ second-hand_bookstore/
 
 ## 已知限制
 
-- 微信支付、ISBN OCR、订阅消息预留了接口位，当前用 mock/占位实现（答辩够用，上线需补齐资质与配置）。
+- **短信、身份证核验、人脸识别、ISBN 查询当前都是 mock**（`app.mock-sms` / `app.mock-identity` 开关），换真实供应商只改 `SmsService` / `IdentityService` / `IsbnService`，接口契约不变；支付同为 mock。
 - 推荐是规则召回（同课程 + 收藏共现），不是模型排序；数据量上来后可替换为 ItemCF。
 - 管理后台默认走 mock，接真后端需改 `admin/.env`。
-- 用户端 Web 的图片只接受 URL（后端不落盘），支付为 mock；打包 APK 时须把 `VITE_API_BASE` 指向公网后端并配 HTTPS。
+- 用户端 Web 的图片只接受 URL（后端不落盘），打包 APK 时须把 `VITE_API_BASE` 指向公网后端并配 HTTPS。
+- 小程序端仍是旧版「店员核销」流程，定位为参考实现；主线交易流程在响应式 Web。
+- 爽约扣分（约定时间 +30 分钟才可上报）逻辑已实现，但自动化脚本未覆盖该等待分支。
 
 ## License
 

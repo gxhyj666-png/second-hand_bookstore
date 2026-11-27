@@ -20,6 +20,57 @@ public class AppProps {
     private String verifySecret = "verify-code-dev-secret-please-change";
     /** 核销码轮换窗口（秒） */
     private int verifyWindowSeconds = 30;
+    /** 核销码有效期（分钟）：买家出示、卖家核销 */
+    private int verifyCodeTtlMinutes = 15;
+    /** 短信验证码有效期（秒） */
+    private int smsCodeTtlSeconds = 300;
+    /** 开发模式：不真正发短信，验证码写日志并随响应返回；生产置 false 接阿里云 SMS */
+    private boolean mockSms = true;
+
+    /** 同一手机号两次发送验证码的最小间隔（秒）；开发期可调小以便反复跑冒烟脚本 */
+    private int smsIntervalSeconds = 60;
+    /** 开发模式：实名/学生/人脸走本地模拟通过；生产置 false 接三方实人认证 */
+    private boolean mockIdentity = true;
+
+    public int getVerifyCodeTtlMinutes() {
+        return verifyCodeTtlMinutes;
+    }
+
+    public void setVerifyCodeTtlMinutes(int verifyCodeTtlMinutes) {
+        this.verifyCodeTtlMinutes = verifyCodeTtlMinutes;
+    }
+
+    public int getSmsCodeTtlSeconds() {
+        return smsCodeTtlSeconds;
+    }
+
+    public void setSmsCodeTtlSeconds(int smsCodeTtlSeconds) {
+        this.smsCodeTtlSeconds = smsCodeTtlSeconds;
+    }
+
+    public boolean isMockSms() {
+        return mockSms;
+    }
+
+    public void setMockSms(boolean mockSms) {
+        this.mockSms = mockSms;
+    }
+
+    public int getSmsIntervalSeconds() {
+        return smsIntervalSeconds;
+    }
+
+    public void setSmsIntervalSeconds(int smsIntervalSeconds) {
+        this.smsIntervalSeconds = smsIntervalSeconds;
+    }
+
+    public boolean isMockIdentity() {
+        return mockIdentity;
+    }
+
+    public void setMockIdentity(boolean mockIdentity) {
+        this.mockIdentity = mockIdentity;
+    }
 
     public String getJwtSecret() {
         return jwtSecret;

@@ -56,7 +56,7 @@ public class SocialService {
         if (!buyer && !seller) {
             throw BizException.forbidden("只能评价自己参与的订单");
         }
-        if (!"VERIFIED".equals(order.getStatus()) && !"SETTLED".equals(order.getStatus())) {
+        if (!"COMPLETED".equals(order.getStatus())) {
             throw BizException.conflict("交易完成后才能评价");
         }
         Long target = buyer ? order.getSellerId() : order.getBuyerId();

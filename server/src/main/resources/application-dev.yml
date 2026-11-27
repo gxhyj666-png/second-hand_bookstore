@@ -19,3 +19,7 @@ spring:
 mybatis-plus:
   configuration:
     log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl
+
+app:
+  # 开发期把短信发送间隔压到 3 秒，方便反复跑 tools/smoke.ps1（生产默认 60 秒）
+  sms-interval-seconds: 3

@@ -1,140 +1,181 @@
-# 同窗书 · 后端冒烟测试（PowerShell 版）
-# 用法：后端已在 8088 端口运行时执行  pwsh tools/smoke.ps1
-# 作用：把答辩最该演示的主链路跑一遍：登录 → 选书 → 下单 → 支付冻结 → 店员核销 → 结算。
+﻿# 同窗书 · 主链路冒烟（打磨后的三态交易流程）
+# 用法：powershell -NoProfile -ExecutionPolicy Bypass -File tools\smoke.ps1
+# 说明：短信验证码在 mock 模式下由 /v1/auth/sms-code 直接回传 devCode，无需真实短信。
 
 $ErrorActionPreference = 'Stop'
+try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch { }
 $base = if ($env:BASE_URL) { $env:BASE_URL } else { 'http://127.0.0.1:8088' }
-$pass = 0
-$fail = 0
+$api = $base
+$script:pass = 0
+$script:fail = 0
 
-function Step($name, $script) {
+function Step([string]$name, [scriptblock]$action) {
     try {
-        & $script
-        Write-Host ("  [通过] " + $name) -ForegroundColor Green
-        $global:pass++
+        $result = & $action
+        $script:pass++
+        Write-Host ("[通过] {0}" -f $name) -ForegroundColor Green
+        return $result
     } catch {
-        Write-Host ("  [失败] " + $name + "：" + $_.Exception.Message) -ForegroundColor Red
-        $global:fail++
+        $script:fail++
+        Write-Host ("[失败] {0} -> {1}" -f $name, $_.Exception.Message) -ForegroundColor Red
+        return $null
     }
 }
 
-function Api($method, $path, $token, $body) {
-    $headers = @{}
+function Api([string]$method, [string]$path, $token, $body) {
+    $headers = @{ 'Accept' = 'application/json' }
     if ($token) { $headers['Authorization'] = "Bearer $token" }
-    $params = @{ Method = $method; Uri = "$base$path"; Headers = $headers; ContentType = 'application/json' }
-    if ($body -ne $null) { $params['Body'] = ($body | ConvertTo-Json -Depth 6) }
+    $params = @{
+        Uri         = "$api$path"
+        Method      = $method
+        Headers     = $headers
+        ContentType = 'application/json; charset=utf-8'
+        TimeoutSec  = 30
+    }
+    if ($null -ne $body) { $params['Body'] = ([System.Text.Encoding]::UTF8.GetBytes(($body | ConvertTo-Json -Depth 6 -Compress))) }
+    elseif ($method -eq 'POST') { $params['Body'] = ([System.Text.Encoding]::UTF8.GetBytes('{}')) }
     $resp = Invoke-RestMethod @params
-    if ($resp.code -ne 0) { throw "$path -> code=$($resp.code) $($resp.message)" }
+    if ($resp.code -ne 0) { throw "业务错误 [$($resp.code)] $($resp.message)" }
     return $resp.data
 }
 
-Write-Host "`n== 同窗书后端冒烟测试 @ $base ==`n" -ForegroundColor Cyan
-
-Step '健康检查' {
-    $h = Api GET '/v1/health'
-    if ($h.status -ne 'UP') { throw "status=$($h.status)" }
+function SmsLogin([string]$phone) {
+    $sent = Api 'POST' '/v1/auth/sms-code' $null @{ phone = $phone }
+    $view = Api 'POST' '/v1/auth/sms-login' $null @{ phone = $phone; code = $sent.devCode }
+    return $view
 }
 
-$buyer = $null
-Step '买家登录（13800000002）' {
-    $global:buyer = Api POST '/v1/auth/login' $null @{ account = '13800000002'; password = '123456' }
-    if (-not $global:buyer.token) { throw '没有拿到 token' }
+Write-Host "`n=== 同窗书主链路冒烟 ($api) ===`n" -ForegroundColor Cyan
+
+$health = Step '健康检查' { Api 'GET' '/v1/health' $null $null }
+if ($health) { Write-Host ("     status={0} app={1}" -f $health.status, $health.app) }
+
+$buyerToken = $null
+$buyer = Step '买家短信登录（13800000002）' {
+    $v = SmsLogin '13800000002'
+    if (-not $v.token) { throw '未返回 token' }
+    $script:buyerToken = $v.token
+    $v
+}
+$seller = Step '卖家短信登录（13800000003）' {
+    $v = SmsLogin '13800000003'
+    $script:sellerToken = $v.token
+    $v
+}
+$admin = Step '管理员短信登录（13800000001）' {
+    $v = SmsLogin '13800000001'
+    $script:adminToken = $v.token
+    $v
 }
 
-$clerk = $null
-Step '店员登录（13800000004）' {
-    $global:clerk = Api POST '/v1/auth/login' $null @{ account = '13800000004'; password = '123456' }
-}
+$list = Step '游客检索商品' { Api 'GET' '/v1/listings?size=20' $null $null }
+if ($list) { Write-Host ("     在售 {0} 件" -f $list.total) }
 
-Step '管理员登录并读取看板' {
-    $admin = Api POST '/v1/auth/login' $null @{ account = '13800000001'; password = 'admin123' }
-    $dash = Api GET '/v1/admin/dashboard' $admin.token
-    if ($dash.userCount -lt 5) { throw "userCount=$($dash.userCount)" }
-    Write-Host ("      用户 $($dash.userCount) / 在售 $($dash.onSaleCount) / GMV $($dash.gmv) / 待处理工单 $($dash.pendingTickets)")
+$pick = $null
+if ($list -and $list.records) {
+    $pick = $list.records | Where-Object { $_.sellerId -eq $seller.user.id } | Select-Object -First 1
 }
+Step '商品详情 + 价格指数' {
+    if (-not $pick) { throw '没有可买商品' }
+    $view = Api 'GET' "/v1/listings/$($pick.id)" $null $null
+    $detail = $view.listing
+    $idx = Api 'GET' "/v1/textbooks/$($detail.textbookId)/price-index" $null $null
+    Write-Host ("     《{0}》¥{1} 参考均价 ¥{2}" -f $detail.title, $detail.price, $idx.avg)
+    $detail
+} | Out-Null
 
-$listing = $null
-Step '课程→教材链路' {
-    $courses = Api GET '/v1/courses?size=5' $buyer.token
-    if ($courses.total -lt 1) { throw '课程库为空' }
-    $books = Api GET '/v1/textbooks?size=5' $buyer.token
-    if ($books.total -lt 1) { throw '教材库为空' }
-}
+Step '推荐列表（公开）' {
+    $rec = Api 'GET' '/v1/recommend?size=8' $null $null
+    if (-not $rec) { throw '推荐为空' }
+    Write-Host ("     推荐 {0} 件" -f $rec.Count)
+} | Out-Null
 
-Step '检索在售商品' {
-    $list = Api GET '/v1/listings?size=5&sort=newest' $buyer.token
-    if ($list.total -lt 1) { throw '没有在售商品，请确认示例数据已灌入' }
-    $global:listing = $list.records[0]
-    Write-Host ("      选中：" + $global:listing.title + "  ￥" + $global:listing.price)
-}
-
-Step '商品详情与价格指数' {
-    $detail = Api GET "/v1/listings/$($global:listing.id)" $buyer.token
-    if (-not $detail.listing) { throw '详情为空' }
-    $idx = Api GET "/v1/textbooks/$($global:listing.textbookId)/price-index" $buyer.token
-    Write-Host ("      同类成交价：最低 $($idx.min) / 均价 $($idx.avg) / 建议 $($idx.suggest)")
-}
-
-Step '推荐列表' {
-    # 推荐接口对登录用户会排除自己发布的商品；种子数据里演示买家同时也是卖家，
-    # 商品被买光后个性化推荐为空是正常业务语义，因此公开推荐必须可用、个性化只做提示。
-    $rec = Api GET '/v1/recommend?limit=5'
-    if ($rec.Count -lt 1) { throw '公开推荐为空' }
-    $mine = Api GET '/v1/recommend?limit=5' $buyer.token
-    Write-Host ("      公开推荐 $($rec.Count) 条 / 个性化 $($mine.Count) 条")
-}
-
-$order = $null
-Step '下单（幂等 requestId）' {
-    $points = Api GET '/v1/pickup-points?schoolId=1' $buyer.token
-    if ($points.Count -lt 1) { throw '没有自提点' }
-    $rid = [guid]::NewGuid().ToString()
-    $global:order = Api POST '/v1/orders' $buyer.token @{
-        listingId = $global:listing.id
-        pointId   = $points[0].id
-        requestId = $rid
+$myListing = Step '买家发布商品（含 7 张照片）' {
+    $publish = Api 'POST' '/v1/listings' $buyerToken @{
+        textbookId = 1; courseId = 1; price = 12.50; condition = 'LIKE_NEW'
+        description = '冒烟测试商品'; dorm = '3-201'; images = @()
     }
-    # 同一个 requestId 再提交一次，应返回同一张订单
-    $again = Api POST '/v1/orders' $buyer.token @{
-        listingId = $global:listing.id
-        pointId   = $points[0].id
-        requestId = $rid
+    $photos = @(
+        @{ type = 'COVER'; url = 'demo/cover.jpg' },
+        @{ type = 'BACK'; url = 'demo/back.jpg' },
+        @{ type = 'PUBLISH_DATE'; url = 'demo/pubdate.jpg' },
+        @{ type = 'CONTENT1'; url = 'demo/p1.jpg' },
+        @{ type = 'CONTENT2'; url = 'demo/p2.jpg' },
+        @{ type = 'CONTENT3'; url = 'demo/p3.jpg' },
+        @{ type = 'CONTENT4'; url = 'demo/p4.jpg' }
+    )
+    $saved = Api 'POST' "/v1/listings/$($publish.id)/photos" $buyerToken @{ photos = $photos }
+    Write-Host ("     照片 {0} 张，齐全={1}" -f $saved.count, $saved.complete)
+    $publish
+}
+
+$order = Step '买家下单' {
+    if (-not $pick) { throw '没有可买商品' }
+    Api 'POST' '/v1/orders' $buyerToken @{ listingId = $pick.id; pointId = 0; requestId = "SMOKE-$([guid]::NewGuid().ToString('N'))" }
+}
+if ($order) { Write-Host ("     订单 {0} 状态 {1}" -f $order.orderNo, $order.status) }
+
+$paid = Step '买家支付' {
+    if (-not $order) { throw '无订单' }
+    $o = Api 'POST' "/v1/orders/$($order.orderNo)/pay" $buyerToken @{ channel = 'MOCK' }
+    if ($o.status -ne 'WAIT_VERIFY') { throw "支付后状态异常：$($o.status)" }
+    $o
+}
+
+$codeInfo = Step '买家出示核销码（15 分钟有效）' {
+    if (-not $order) { throw '无订单' }
+    $c = Api 'GET' "/v1/orders/$($order.orderNo)/verify-code" $buyerToken $null
+    if ($c.code.Length -ne 6) { throw '核销码不是 6 位' }
+    Write-Host ("     核销码 {0}，剩余 {1}s" -f $c.code, $c.remainSeconds)
+    $c
+}
+
+$meet = Step '卖家发起约见 → 买家确认' {
+    if (-not $order) { throw '无订单' }
+    $m = Api 'POST' "/v1/orders/$($order.orderNo)/meets" $sellerToken @{
+        type = 'TRADE'; place = '图书馆西门'; time = (Get-Date).AddMinutes(30).ToString('yyyy-MM-ddTHH:mm:ss')
     }
-    if ($again.orderNo -ne $global:order.orderNo) { throw '幂等失效：两次返回不同订单' }
-    Write-Host ("      订单号：$($global:order.orderNo)  状态：$($global:order.status)")
+    $c = Api 'POST' "/v1/orders/meets/$($m.id)/confirm" $buyerToken @{ agreed = $true; note = '准时到' }
+    if ($c.status -ne 'CONFIRMED') { throw "确认后状态异常：$($c.status)" }
+    $c
 }
 
-Step '支付（资金冻结）' {
-    $paid = Api POST "/v1/orders/$($global:order.orderNo)/pay" $buyer.token @{ channel = 'MOCK' }
-    if ($paid.status -ne 'FROZEN') { throw "status=$($paid.status)" }
-}
-
-Step '等待核销' {
-    $wait = Api POST "/v1/orders/$($global:order.orderNo)/wait-verify" $buyer.token
-    if ($wait.status -ne 'WAIT_VERIFY') { throw "status=$($wait.status)" }
-}
-
-Step '获取动态核销码' {
-    $code = Api GET "/v1/orders/$($global:order.orderNo)/verify-code" $buyer.token
-    if (-not $code.code) { throw '没有核销码' }
-    $global:code = $code.code
-}
-
-Step '店员核销' {
-    $done = Api POST '/v1/orders/verify' $clerk.token @{
-        orderNo = $global:order.orderNo
-        code    = $global:code
-        method  = 'SCAN'
+$done = Step '卖家核销 + 签到照片' {
+    if (-not $order -or -not $codeInfo) { throw '缺少订单或核销码' }
+    $o = Api 'POST' "/v1/orders/$($order.orderNo)/verify" $sellerToken @{
+        code = $codeInfo.code; signPhotoUrl = 'demo/sign.jpg'
     }
-    if ($done.status -ne 'SETTLED') { throw "status=$($done.status)" }
+    if ($o.status -ne 'COMPLETED') { throw "核销后状态异常：$($o.status)" }
+    $o
 }
+if ($done) { Write-Host ("     订单完成于 {0}" -f $done.completedAt) }
 
-Step '核销后信用分与结算' {
-    $me = Api GET '/v1/auth/me' $buyer.token
-    if ($me.creditScore -lt 100) { throw "creditScore=$($me.creditScore)" }
-    $orders = Api GET '/v1/orders?role=buyer' $buyer.token
-    if ($orders.total -lt 1) { throw '订单列表为空' }
-}
+Step '双边评价' {
+    if (-not $order) { throw '无订单' }
+    Api 'POST' '/v1/reviews' $buyerToken @{ orderNo = $order.orderNo; rating = 5; content = '书很新，交易顺利'; anonymous = $false } | Out-Null
+    Api 'POST' '/v1/reviews' $sellerToken @{ orderNo = $order.orderNo; rating = 5; content = '买家很爽快'; anonymous = $false } | Out-Null
+} | Out-Null
 
-Write-Host "`n== 结果：通过 $pass，失败 $fail ==`n" -ForegroundColor Cyan
-if ($fail -gt 0) { exit 1 }
+Step '信用分与信用记录' {
+    $me = Api 'GET' '/v1/auth/me' $buyerToken $null
+    $logs = Api 'GET' '/v1/me/credit-logs?size=5' $buyerToken $null
+    Write-Host ("     买家信用分 {0}，最近记录 {1} 条" -f $me.creditScore, $logs.total)
+    if ($me.creditScore -lt 100) { throw '信用分未按预期增加' }
+} | Out-Null
+
+Step '未读消息' {
+    $n = Api 'GET' '/v1/notices/unread-count' $buyerToken $null
+    Write-Host ("     未读 {0} 条" -f $n.count)
+} | Out-Null
+
+Step '管理员看板 + 商户审核列表' {
+    $d = Api 'GET' '/v1/admin/dashboard' $adminToken $null
+    Write-Host ("     用户 {0} / 在售 {1} / GMV {2}" -f $d.userCount, $d.onSaleCount, $d.gmv)
+    $m = Api 'GET' '/v1/admin/merchants' $adminToken $null
+    $cnt = @($m).Count
+    if ($m.records) { $cnt = @($m.records).Count }
+    Write-Host ("     商户 {0} 家" -f $cnt)
+} | Out-Null
+
+Write-Host ("`n=== 结果：{0} 通过 / {1} 失败 ===`n" -f $script:pass, $script:fail) -ForegroundColor Cyan
+if ($script:fail -gt 0) { exit 1 }

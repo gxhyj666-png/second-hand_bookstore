@@ -26,6 +26,9 @@ public class BizListing implements Serializable {
     /** 卖家 */
     private Long sellerId;
 
+    /** 所属商户 ID，0 表示个人卖家 */
+    private Long merchantId;
+
     /** 教材 ID */
     private Long textbookId;
 

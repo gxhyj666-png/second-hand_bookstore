@@ -74,8 +74,13 @@ for (let i = 1; i < chunks.length; i += 2) {
     });
   }
   if (cols.length === 0) continue;
-  if (!pk) pk = cols.length && cols[0].name === 'id' ? 'id' : null;
-  tables.push({ table, cols, pk });
+  let pkInput = false;
+  if (!pk) {
+    // 无自增列（如 sys_idempotent 用 request_id 作主键）：取首列并标记为手工赋值
+    pk = cols[0].name;
+    pkInput = true;
+  }
+  tables.push({ table, cols, pk, pkInput });
 }
 
 function genEntity(t) {
@@ -85,8 +90,8 @@ function genEntity(t) {
     const ann = [];
     if (c.name === t.pk) {
       imports.add('com.baomidou.mybatisplus.annotation.TableId');
-      if (c.autoInc) imports.add('com.baomidou.mybatisplus.annotation.IdType');
-      ann.push(c.autoInc ? '    @TableId(type = IdType.AUTO)' : '    @TableId');
+      if (c.autoInc || t.pkInput) imports.add('com.baomidou.mybatisplus.annotation.IdType');
+      ann.push(c.autoInc ? '    @TableId(type = IdType.AUTO)' : t.pkInput ? '    @TableId(type = IdType.INPUT)' : '    @TableId');
     } else if (/^(created_at|update_time|create_time)$/.test(c.name)) {
       imports.add('com.baomidou.mybatisplus.annotation.TableField');
       imports.add('com.baomidou.mybatisplus.annotation.FieldFill');
@@ -148,3 +153,4 @@ for (const t of tables) {
 }
 console.log(`generated ${count} entities + ${count} mappers`);
 console.log(tables.map((t) => `${t.table}(${t.cols.length})`).join(', '));
+

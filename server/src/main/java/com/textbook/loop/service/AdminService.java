@@ -81,7 +81,7 @@ public class AdminService {
                 .eq(BizListing::getStatus, "PENDING"));
 
         List<BizOrders> settled = ordersMapper.selectList(new LambdaQueryWrapper<BizOrders>()
-                .in(BizOrders::getStatus, "VERIFIED", "SETTLED"));
+                .in(BizOrders::getStatus, "COMPLETED"));
         BigDecimal gmv = settled.stream()
                 .map(o -> o.getAmount() == null ? BigDecimal.ZERO : o.getAmount())
                 .reduce(BigDecimal.ZERO, BigDecimal::add);

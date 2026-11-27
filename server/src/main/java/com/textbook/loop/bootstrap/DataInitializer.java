@@ -125,6 +125,18 @@ public class DataInitializer implements CommandLineRunner {
                             + "new_user_count, refund_count) values (?,?,?,?,?,?,?,?)",
                     d, schoolId, new BigDecimal(gmv[i]), orders[i], Math.max(0, orders[i] - 1), i + 2, i + 1, 0);
         }
+        // 演示用户默认已完成实名 + 学生 + 人脸认证，否则新的交易闸门（实名 + 学生双认证）会挡住冒烟脚本。
+        jdbc.update("update sys_user set id_verified=1, student_verified=1, face_verified=1, "
+                + "id_no='330106199901011234', id_card_front='demo/id-front.jpg', id_card_back='demo/id-back.jpg', "
+                + "student_card_cover='demo/student-cover.jpg', student_card_info='demo/student-info.jpg' "
+                + "where id_no is null or id_verified=0");
+
+        // 一个已审核通过的商户（卖家 seller001），用于演示商户端批量上下架与统计。
+        jdbc.update("insert into sys_merchant (user_id, shop_name, license_url, contact, status, listing_count) "
+                + "values (?,?,?,?,?,?)", 3L, "同窗书·教材小铺", "demo/license.jpg", "13800000003", "APPROVED", 0);
+        jdbc.update("update sys_user set merchant_id=? where id=?", 1L, 3L);
+        jdbc.update("update biz_listing set merchant_id=? where seller_id=?", 1L, 3L);
+
         log.info("示例数据初始化完成：admin/13800000001 admin123；其余账号密码 123456；团长陈班长 13800000005，接龙码 JY2026");
     }
 

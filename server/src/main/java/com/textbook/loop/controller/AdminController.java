@@ -11,6 +11,7 @@ import com.textbook.loop.domain.SysTextbook;
 import com.textbook.loop.domain.SysUser;
 import com.textbook.loop.security.UserContext;
 import com.textbook.loop.service.AdminService;
+import com.textbook.loop.service.MerchantService;
 import com.textbook.loop.service.TicketService;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -33,10 +34,13 @@ public class AdminController {
 
     private final AdminService adminService;
     private final TicketService ticketService;
+    private final MerchantService merchantService;
 
-    public AdminController(AdminService adminService, TicketService ticketService) {
+    public AdminController(AdminService adminService, TicketService ticketService,
+                           MerchantService merchantService) {
         this.adminService = adminService;
         this.ticketService = ticketService;
+        this.merchantService = merchantService;
     }
 
     public record RejectReq(String reason) {
@@ -172,5 +176,24 @@ public class AdminController {
         UserContext.requireAdmin();
         adminService.hideReview(UserContext.requireUserId(), id);
         return ApiResponse.ok();
+    }
+
+    public record MerchantReviewReq(boolean approved, String reason) {
+    }
+
+    /** 商户入驻审核列表。 */
+    @GetMapping("/merchants")
+    public ApiResponse<?> merchants(@RequestParam(required = false) String status,
+                                    @RequestParam(defaultValue = "1") long page,
+                                    @RequestParam(defaultValue = "20") long size) {
+        UserContext.requireAdmin();
+        return ApiResponse.ok(merchantService.adminList(status));
+    }
+
+    /** 商户审核：通过后角色升级为 MERCHANT，可批量上下架。 */
+    @PostMapping("/merchants/{id}/review")
+    public ApiResponse<?> reviewMerchant(@PathVariable Long id, @RequestBody MerchantReviewReq req) {
+        UserContext.requireAdmin();
+        return ApiResponse.ok(merchantService.review(UserContext.requireUserId(), id, req.approved(), req.reason()));
     }
 }

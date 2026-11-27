@@ -43,6 +43,15 @@ CREATE TABLE IF NOT EXISTS sys_user (
     major        VARCHAR(64)  NOT NULL DEFAULT '',
     grade        VARCHAR(16)  NOT NULL DEFAULT '',
     dorm         VARCHAR(64)  NOT NULL DEFAULT '',
+    id_no        VARCHAR(32)  NOT NULL DEFAULT '',
+    id_verified  TINYINT      NOT NULL DEFAULT 0,
+    face_verified TINYINT     NOT NULL DEFAULT 0,
+    student_verified TINYINT  NOT NULL DEFAULT 0,
+    id_card_front VARCHAR(255) NOT NULL DEFAULT '',
+    id_card_back  VARCHAR(255) NOT NULL DEFAULT '',
+    student_card_cover VARCHAR(255) NOT NULL DEFAULT '',
+    student_card_info  VARCHAR(255) NOT NULL DEFAULT '',
+    merchant_id  BIGINT       NOT NULL DEFAULT 0,
     credit_score INT          NOT NULL DEFAULT 100,
     role         VARCHAR(16)  NOT NULL DEFAULT 'STUDENT',
     verify_state VARCHAR(16)  NOT NULL DEFAULT 'UNVERIFIED',
@@ -140,6 +149,7 @@ CREATE TABLE IF NOT EXISTS sys_course_textbook (
 CREATE TABLE IF NOT EXISTS biz_listing (
     id             BIGINT       NOT NULL AUTO_INCREMENT,
     seller_id      BIGINT       NOT NULL,
+    merchant_id    BIGINT       NOT NULL DEFAULT 0,
     textbook_id    BIGINT       NOT NULL,
     course_id      BIGINT       NOT NULL DEFAULT 0,
     title          VARCHAR(160) NOT NULL,
@@ -200,7 +210,13 @@ CREATE TABLE IF NOT EXISTS biz_orders (
     amount         DECIMAL(10,2) NOT NULL,
     commission     DECIMAL(10,2) NOT NULL DEFAULT 0.00,
     status         VARCHAR(16)  NOT NULL DEFAULT 'PENDING_PAY',
-    verify_code    VARCHAR(64)  NOT NULL DEFAULT '',
+    verify_code    VARCHAR(16)  NOT NULL DEFAULT '',
+    verify_expire_at DATETIME   NULL,
+    meet_place     VARCHAR(128) NOT NULL DEFAULT '',
+    meet_time      DATETIME     NULL,
+    sign_photo_url VARCHAR(255) NOT NULL DEFAULT '',
+    sign_at        DATETIME     NULL,
+    merchant_id    BIGINT       NOT NULL DEFAULT 0,
     pay_channel    VARCHAR(16)  NOT NULL DEFAULT 'MOCK',
     trade_no       VARCHAR(64)  NOT NULL DEFAULT '',
     remark         VARCHAR(255) NOT NULL DEFAULT '',
@@ -209,6 +225,7 @@ CREATE TABLE IF NOT EXISTS biz_orders (
     paid_at        DATETIME     NULL,
     verified_at    DATETIME     NULL,
     settled_at     DATETIME     NULL,
+    completed_at   DATETIME     NULL,
     closed_at      DATETIME     NULL,
     created_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -448,5 +465,157 @@ CREATE TABLE IF NOT EXISTS sys_admin_log (
     detail     VARCHAR(500) NOT NULL DEFAULT '',
     ip         VARCHAR(45)  NOT NULL DEFAULT '',
     created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
+);
+
+-- -----------------------------------------------------------------------------
+-- 24. 短信验证码（登录 / 交易二次验证；生产接入阿里云 SMS，开发走 mock）
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS sys_sms_code (
+    id         BIGINT      NOT NULL AUTO_INCREMENT,
+    phone      VARCHAR(20) NOT NULL,
+    code       VARCHAR(8)  NOT NULL,
+    purpose    VARCHAR(16) NOT NULL DEFAULT 'LOGIN',
+    expire_at  DATETIME    NOT NULL,
+    used       TINYINT     NOT NULL DEFAULT 0,
+    created_at DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
+);
+
+-- -----------------------------------------------------------------------------
+-- 25. 认证审核记录（实名 / 学生 / 人脸，便于追溯三方调用结果）
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS sys_verify_record (
+    id          BIGINT       NOT NULL AUTO_INCREMENT,
+    user_id     BIGINT       NOT NULL,
+    verify_type VARCHAR(16)  NOT NULL,
+    status      VARCHAR(16)  NOT NULL DEFAULT 'PENDING',
+    provider    VARCHAR(32)  NOT NULL DEFAULT 'MOCK',
+    payload     VARCHAR(500) NOT NULL DEFAULT '',
+    result      VARCHAR(500) NOT NULL DEFAULT '',
+    created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
+);
+
+-- -----------------------------------------------------------------------------
+-- 26. 商户（可供书籍量大的商家入驻，批量上下架）
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS sys_merchant (
+    id          BIGINT       NOT NULL AUTO_INCREMENT,
+    user_id     BIGINT       NOT NULL,
+    shop_name   VARCHAR(64)  NOT NULL,
+    license_url VARCHAR(255) NOT NULL DEFAULT '',
+    contact     VARCHAR(64)  NOT NULL DEFAULT '',
+    status      VARCHAR(16)  NOT NULL DEFAULT 'PENDING',
+    reject_reason VARCHAR(255) NOT NULL DEFAULT '',
+    approved_by BIGINT       NOT NULL DEFAULT 0,
+    approved_at DATETIME     NULL,
+    listing_count INT        NOT NULL DEFAULT 0,
+    created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted     TINYINT      NOT NULL DEFAULT 0,
+    PRIMARY KEY (id)
+);
+
+-- -----------------------------------------------------------------------------
+-- 27. 商品图片（扫码录入后按规范上传：封面/封底/出版日期页/随机四页正文）
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS biz_listing_photo (
+    id         BIGINT       NOT NULL AUTO_INCREMENT,
+    listing_id BIGINT       NOT NULL,
+    photo_type VARCHAR(16)  NOT NULL,
+    page_no    INT          NOT NULL DEFAULT 0,
+    url        VARCHAR(255) NOT NULL,
+    sort_no    INT          NOT NULL DEFAULT 0,
+    created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
+);
+
+-- -----------------------------------------------------------------------------
+-- 28. 交易/退货的时间地点确认（任一方发起，另一方确认）
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS biz_meet (
+    id           BIGINT       NOT NULL AUTO_INCREMENT,
+    order_id     BIGINT       NOT NULL,
+    meet_type    VARCHAR(16)  NOT NULL DEFAULT 'TRADE',
+    proposer_id  BIGINT       NOT NULL,
+    place        VARCHAR(128) NOT NULL,
+    meet_time    DATETIME     NOT NULL,
+    remark       VARCHAR(255) NOT NULL DEFAULT '',
+    status       VARCHAR(16)  NOT NULL DEFAULT 'PROPOSED',
+    confirmed_at DATETIME     NULL,
+    created_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
+);
+
+-- -----------------------------------------------------------------------------
+-- 29. 退款退货单（协商 → 平台介入）
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS biz_refund (
+    id               BIGINT        NOT NULL AUTO_INCREMENT,
+    order_id         BIGINT        NOT NULL,
+    applicant_id     BIGINT        NOT NULL,
+    reason           VARCHAR(255)  NOT NULL,
+    evidence_url     VARCHAR(255)  NOT NULL DEFAULT '',
+    amount           DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    status           VARCHAR(16)   NOT NULL DEFAULT 'PENDING',
+    platform_verdict VARCHAR(16)   NOT NULL DEFAULT '',
+    platform_remark  VARCHAR(255)  NOT NULL DEFAULT '',
+    decided_by       BIGINT        NOT NULL DEFAULT 0,
+    decided_at       DATETIME      NULL,
+    refunded_at      DATETIME      NULL,
+    created_at       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
+);
+
+-- -----------------------------------------------------------------------------
+-- 30. 爽约上报（未按约定出现且未沟通，每次扣 5 信誉分）
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS biz_no_show (
+    id          BIGINT       NOT NULL AUTO_INCREMENT,
+    order_id    BIGINT       NOT NULL,
+    reporter_id BIGINT       NOT NULL,
+    target_id   BIGINT       NOT NULL,
+    photo_url   VARCHAR(255) NOT NULL DEFAULT '',
+    description VARCHAR(255) NOT NULL DEFAULT '',
+    credit_delta INT         NOT NULL DEFAULT -5,
+    status      VARCHAR(16)  NOT NULL DEFAULT 'VALID',
+    created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
+);
+
+-- -----------------------------------------------------------------------------
+-- 31. 会话（买卖双方围绕商品私信；下单后锁定订单聊天）
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS biz_conversation (
+    id            BIGINT       NOT NULL AUTO_INCREMENT,
+    listing_id    BIGINT       NOT NULL,
+    buyer_id      BIGINT       NOT NULL,
+    seller_id     BIGINT       NOT NULL,
+    order_id      BIGINT       NOT NULL DEFAULT 0,
+    last_message  VARCHAR(255) NOT NULL DEFAULT '',
+    last_at       DATETIME     NULL,
+    buyer_unread  INT          NOT NULL DEFAULT 0,
+    seller_unread INT          NOT NULL DEFAULT 0,
+    created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    CONSTRAINT biz_conversation_uk_listing_buyer UNIQUE (listing_id, buyer_id)
+);
+
+-- -----------------------------------------------------------------------------
+-- 32. 消息（文本 / 时间地点确认卡片 / 退款卡片 / 签到卡片）
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS biz_message (
+    id              BIGINT       NOT NULL AUTO_INCREMENT,
+    conversation_id BIGINT       NOT NULL,
+    sender_id       BIGINT       NOT NULL,
+    msg_type        VARCHAR(16)  NOT NULL DEFAULT 'TEXT',
+    content         VARCHAR(1000) NOT NULL DEFAULT '',
+    ref_id          BIGINT       NOT NULL DEFAULT 0,
+    read_flag       TINYINT      NOT NULL DEFAULT 0,
+    created_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id)
 );

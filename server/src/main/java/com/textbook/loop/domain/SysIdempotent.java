@@ -18,7 +18,7 @@ public class SysIdempotent implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    /** 客户端 requestId 或回调流水号（主键，由客户端提供，ID_INPUT 不做自增） */
+    /** 客户端 requestId 或回调流水号 */
     @TableId(type = IdType.INPUT)
     private String requestId;
 
