@@ -41,3 +41,6 @@ miniapp/project.private.config.json
 
 # IDEA 编译输出
 out/
+
+# Vite 依赖预构建缓存（在仓库根误跑 vite 时会出现）
+/.vite/
