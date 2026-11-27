@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!--
+      聚合 POM：只为让 IDE（IDEA / Eclipse）把整个仓库识别成一个 Maven 工程，
+      并把 server/ 自动导入为模块。后端自身的依赖与版本都在 server/pom.xml 里，这里不重复声明。
+      命令行等价用法：
+        .\mvnw.cmd -q -DskipTests compile      # 编译后端
+        .\mvnw.cmd -q -DskipTests package      # 打包 server/target/*.jar
+    -->
+    <groupId>com.textbook</groupId>
+    <artifactId>textbook-loop</artifactId>
+    <version>0.1.0</version>
+    <packaging>pom</packaging>
+    <name>textbook-loop</name>
+    <description>同窗书 · 校园教材循环平台（聚合工程：后端 server，前端 web/admin 为独立 npm 工程）</description>
+
+    <modules>
+        <module>server</module>
+    </modules>
+</project>

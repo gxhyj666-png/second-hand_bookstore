@@ -38,3 +38,6 @@ miniapp/project.private.config.json
 
 # 本机私有配置（含第三方凭证，绝不提交）
 **/application-*-local.yml
+
+# IDEA 编译输出
+out/

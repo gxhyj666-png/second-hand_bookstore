@@ -1,0 +1,7 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Dev all (backend + web)" type="CompoundRunConfigurationType">
+    <toRun name="Backend dev (H2)" type="Application" />
+    <toRun name="Web dev (Vite)" type="js.build_tools.npm" />
+    <method v="2" />
+  </configuration>
+</component>

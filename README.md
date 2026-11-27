@@ -54,17 +54,31 @@
 
 ## 快速开始
 
+### 方式零：一条命令配好环境（推荐，尤其给新机器 / 别人拷过去）
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\setup-dev.ps1
+```
+
+脚本会自动：找 JDK 17 → 用自带 **Maven Wrapper**（无需装 Maven）编译后端 → `pnpm install` 装前端依赖 →
+写好 IDEA 的 Project SDK/编码/注解处理 → 生成 `admin/.env` 与 `application-spug-local.yml` 模板。
+配完在 IDEA 里 `File > Open` 选仓库根目录、点 **Load Maven Project**，运行配置下拉里直接选
+`Backend dev (H2)` / `Web dev (Vite)` / `Admin dev (Vite)` / `Dev all`。详见 [`docs/08-本地环境与IDEA配置.md`](docs/08-本地环境与IDEA配置.md)。
+
 ### 方式一：零依赖跑后端（推荐，答辩演示用）
 
 后端自带 **H2 文件库** profile，不需要装 MySQL / Redis：
 
 ```bash
-cd server
-# 需要 JDK 17+ 与 Maven 3.8+
-mvn spring-boot:run
-# 或打包后运行
-mvn -DskipTests package && java -jar target/textbook-loop-server-0.1.0.jar
+# 仓库根目录执行（自带 Maven Wrapper，不需要预装 Maven）
+.\mvnw.cmd -DskipTests package
+java -jar server\target\textbook-loop-server-0.1.0.jar --spring.profiles.active=dev
+
+# macOS / Linux
+./mvnw -DskipTests package && java -jar server/target/textbook-loop-server-0.1.0.jar --spring.profiles.active=dev
 ```
+
+需要 **JDK 17**；Maven 由 `mvnw` 首次运行时自动下载 3.9.9，不必单独安装。
 
 - 服务地址：<http://127.0.0.1:8088>
 - 健康检查：<http://127.0.0.1:8088/v1/health>
@@ -147,6 +161,9 @@ ISBN 查询（命中/未命中）→ 实名学生认证状态 → 下单并完�
 
 ```
 second-hand_bookstore/
+├── pom.xml                 # 聚合 POM：让 IDE 把仓库识别成 Maven 工程（唯一子模块 server）
+├── mvnw / mvnw.cmd         # Maven Wrapper（无需预装 Maven，首次自动下载 3.9.9）
+├── .run/                   # IDEA 共享运行配置（后端 dev / 后端 mysql / Web / Admin / 一键全启）
 ├── db/
 │   ├── schema.sql          # MySQL 8 正式 DDL（33 张表，说明见 docs/02-数据库设计.md）
 │   └── seed.sql            # 纯 SQL 示例数据（后端已有 DataInitializer，二选一）
@@ -157,6 +174,7 @@ second-hand_bookstore/
 │   ├── 04-调研实施计划.md
 │   ├── 06-终端形态说明.md   # 为什么先做响应式 Web、APK 怎么出
 │   ├── 07-需求对齐与改造清单.md  # 打磨需求逐条对照与差距
+│   ├── 08-本地环境与IDEA配置.md  # 一键脚本 / SDK / 运行配置 / 排错
 │   └── word/               # 上述四份文档的 Word 版（交作业/答辩直接打印）
 ├── server/                 # Spring Boot 后端
 │   └── src/main/java/com/textbook/loop/
@@ -170,7 +188,7 @@ second-hand_bookstore/
 ├── admin/                  # Vue 3 管理后台（Element Plus）
 ├── web/                    # Vue 3 用户端 Web / H5（Vant，可封装 APK）
 ├── miniapp/                # 微信小程序（参考实现，非主交付）
-├── tools/                  # 冒烟测试、H2 DDL 生成、小程序结构自检
+├── tools/                  # setup-dev（一键环境）、smoke / e2e-trade（冒烟）、reset-dev、生成器
 └── docker-compose.yml
 ```
 
