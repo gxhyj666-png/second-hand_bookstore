@@ -62,7 +62,7 @@ curl http://127.0.0.1:8088/v1/health
 
 > 后端当前没有引入 Redis 依赖，因此 compose 里不再启动 redis 容器（省约 200 MB 内存）。
 >
-> 华为云 / openEuler 环境请看更具体的 `deploy/huawei-cloud.md`（含无 compose 插件时的 `run-with-docker.sh` 用法与 2 GB 内存方案）。
+> 阿里云 / 华为云环境请看更具体的 `deploy/cloud-ecs.md`（含无 compose 插件时的 `run-with-docker.sh` 用法与 2 GB 内存方案）。
 
 另外 3306 / 6379 只绑 `127.0.0.1`，公网访问不到。
 

@@ -1,0 +1,4 @@
+# pnpm 11 默认拦截依赖的安装脚本；esbuild 需要下载平台二进制，vue-demi 需要写适配文件
+allowBuilds:
+  esbuild: true
+  vue-demi: true

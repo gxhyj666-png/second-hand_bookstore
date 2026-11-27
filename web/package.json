@@ -1,0 +1,23 @@
+{
+  "name": "textbook-loop-web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "同窗书 · 校园二手教材循环平台（用户端 Web / H5，可封装为 APK）",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --port 4173"
+  },
+  "dependencies": {
+    "axios": "^1.7.7",
+    "pinia": "^2.2.4",
+    "vant": "^4.9.8",
+    "vue": "^3.5.12",
+    "vue-router": "^4.4.5"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.1.4",
+    "vite": "^5.4.10"
+  }
+}

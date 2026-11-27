@@ -1,0 +1,232 @@
+<template>
+  <div class="login-page">
+    <div class="hero">
+      <div class="brand-mark">书</div>
+      <h1>教材循环</h1>
+      <p>同校交易 · 自提点当面验书 · 担保支付</p>
+    </div>
+
+    <div class="sheet">
+      <h2>欢迎回来</h2>
+      <p class="muted sub">登录后即可发布教材、接龙拼单和查看订单。</p>
+
+      <van-cell-group inset class="form-group">
+        <van-field
+          v-model="account"
+          label="账号"
+          placeholder="请输入手机号"
+          type="tel"
+          maxlength="11"
+          clearable
+          left-icon="user-o"
+        />
+        <van-field
+          v-model="password"
+          label="密码"
+          placeholder="请输入密码"
+          :type="showPwd ? 'text' : 'password'"
+          left-icon="lock"
+          clearable
+          @keyup.enter="submit"
+        >
+          <template #right-icon>
+            <van-icon :name="showPwd ? 'eye-o' : 'closed-eye'" class="eye" @click="showPwd = !showPwd" />
+          </template>
+        </van-field>
+      </van-cell-group>
+
+      <div class="submit-wrap">
+        <van-button block round type="primary" :loading="loading" loading-text="登录中" @click="submit">
+          登录
+        </van-button>
+        <p class="to-register">
+          还没有账号？
+          <span class="link" @click="goRegister">去注册</span>
+        </p>
+      </div>
+
+      <section class="demo">
+        <p class="muted">演示账号（点击自动填入）</p>
+        <div class="demo-row">
+          <button type="button" class="demo-item" @click="fillDemo('buyer')">
+            <strong>买家</strong>
+            <span>13800000002 / 123456</span>
+          </button>
+          <button type="button" class="demo-item" @click="fillDemo('seller')">
+            <strong>卖家</strong>
+            <span>13800000003 / 123456</span>
+          </button>
+        </div>
+        <p class="demo-tip">后端种子数据用手机号作为登录账号，用户名 buyer001/seller001 无法直接登录。</p>
+      </section>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { showToast } from 'vant'
+import { useUserStore } from '@/store/user'
+
+const route = useRoute()
+const router = useRouter()
+const store = useUserStore()
+
+const account = ref('')
+const password = ref('')
+const showPwd = ref(false)
+const loading = ref(false)
+
+const DEMO = {
+  buyer: { account: '13800000002', password: '123456' },
+  seller: { account: '13800000003', password: '123456' }
+}
+
+function fillDemo(role) {
+  account.value = DEMO[role].account
+  password.value = DEMO[role].password
+}
+
+function goRegister() {
+  router.push({ path: '/register', query: route.query })
+}
+
+function redirectTarget() {
+  const redirect = route.query.redirect
+  // 只接受站内绝对路径，避免被 query 带到外站
+  if (typeof redirect === 'string' && redirect.startsWith('/') && !redirect.startsWith('//')) {
+    return redirect
+  }
+  return '/home'
+}
+
+async function submit() {
+  if (loading.value) return
+  const acc = account.value.trim()
+  if (!acc) return showToast('请输入手机号')
+  if (!password.value) return showToast('请输入密码')
+  loading.value = true
+  try {
+    await store.login(acc, password.value)
+    showToast('登录成功')
+    router.replace(redirectTarget())
+  } catch {
+    // 请求层已经提示，保留输入方便重试
+  } finally {
+    loading.value = false
+  }
+}
+</script>
+
+<style scoped>
+.login-page {
+  min-height: 100vh;
+  background: var(--bg);
+}
+.hero {
+  background: linear-gradient(150deg, #245f45 0%, #2f7d5a 55%, #4fa37e 100%);
+  color: #fff;
+  padding: 56px 24px 68px;
+  text-align: center;
+}
+.brand-mark {
+  width: 54px;
+  height: 54px;
+  margin: 0 auto 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  display: grid;
+  place-items: center;
+  font-size: 26px;
+  font-weight: 800;
+}
+.hero h1 {
+  margin: 0 0 6px;
+  font-size: 26px;
+  letter-spacing: 2px;
+  font-weight: 800;
+}
+.hero p {
+  margin: 0;
+  font-size: 12px;
+  opacity: 0.85;
+}
+.sheet {
+  margin: -34px 16px 24px;
+  background: #fff;
+  border-radius: 18px;
+  padding: 22px 8px 24px;
+  box-shadow: 0 12px 30px rgba(31, 74, 56, 0.12);
+}
+.sheet h2 {
+  margin: 0 8px 4px;
+  font-size: 20px;
+  font-weight: 800;
+}
+.sub {
+  margin: 0 8px 14px;
+  font-size: 12px;
+}
+.form-group {
+  margin: 0;
+}
+.eye {
+  color: var(--muted);
+  padding: 6px;
+}
+.submit-wrap {
+  padding: 18px 16px 0;
+}
+.to-register {
+  margin: 12px 0 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--muted);
+}
+.link {
+  color: var(--brand);
+  font-weight: 600;
+  cursor: pointer;
+}
+.demo {
+  margin: 22px 16px 0;
+  padding-top: 16px;
+  border-top: 1px dashed var(--line);
+}
+.demo p {
+  margin: 0 0 8px;
+  font-size: 11px;
+}
+.demo-row {
+  display: flex;
+  gap: 8px;
+}
+.demo-item {
+  flex: 1;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  border-radius: 10px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+  cursor: pointer;
+}
+.demo-item strong {
+  font-size: 12px;
+  color: var(--brand);
+}
+.demo-item span {
+  font-size: 11px;
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.demo-tip {
+  margin: 8px 0 0;
+  font-size: 10px;
+  line-height: 1.5;
+}
+</style>

@@ -1,0 +1,176 @@
+:root {
+  --brand: #2f7d5a;
+  --brand-weak: #eaf4ef;
+  --accent: #e6532f;
+  --ink: #1c2226;
+  --ink-2: #4a5459;
+  --muted: #8a9099;
+  --line: #e8ebed;
+  --bg: #f5f6f7;
+  --card: #fff;
+  --radius: 12px;
+  --shadow: 0 1px 2px rgba(20, 30, 40, 0.04), 0 6px 18px rgba(20, 30, 40, 0.05);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 15px/1.6 -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+}
+
+.page {
+  min-height: 100vh;
+  padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+}
+
+/* 手机单列、平板两列、桌面三到四列 —— 一套代码同时服务 PC 浏览器与手机浏览器 */
+.container {
+  width: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 12px;
+}
+
+.grid-list {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (min-width: 720px) {
+  .grid-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+  }
+  .container {
+    padding: 0 20px;
+  }
+}
+
+@media (min-width: 1080px) {
+  .grid-list {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.card {
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 14px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.price {
+  color: var(--accent);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.tag {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 18px;
+  background: var(--brand-weak);
+  color: var(--brand);
+}
+
+.tag.warn {
+  background: #fff4e5;
+  color: #b26a00;
+}
+
+.tag.muted {
+  background: #f1f3f4;
+  color: #6b6f76;
+}
+
+.tag.danger {
+  background: #fdecea;
+  color: #c0392b;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 18px 0 10px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.section-title .more {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.clamp-1 {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #eef0f2 25%, #f6f7f8 37%, #eef0f2 63%);
+  background-size: 400% 100%;
+  animation: shimmer 1.2s ease-in-out infinite;
+  border-radius: 8px;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}
+
+.van-tabbar {
+  border-top: 1px solid var(--line);
+}
