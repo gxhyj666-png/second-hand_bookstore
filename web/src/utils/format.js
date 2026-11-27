@@ -12,13 +12,28 @@ export const CONDITION_OPTIONS = Object.entries(CONDITION_LABEL).map(([value, te
 
 export const ORDER_STATUS = {
   PENDING_PAY: { text: '待支付', tone: 'warn' },
-  FROZEN: { text: '已支付·待交付', tone: 'info' },
   WAIT_VERIFY: { text: '待核销', tone: 'info' },
-  VERIFIED: { text: '已核销', tone: 'ok' },
-  SETTLED: { text: '已完成', tone: 'ok' },
+  COMPLETED: { text: '已完成', tone: 'ok' },
+  REFUNDING: { text: '退款中', tone: 'warn' },
+  REFUND_AGREED: { text: '退款已同意', tone: 'warn' },
   REFUNDED: { text: '已退款', tone: 'muted' },
-  CLOSED: { text: '已关闭', tone: 'muted' }
+  ARBITRATING: { text: '平台介入中', tone: 'danger' },
+  CLOSED: { text: '已关闭', tone: 'muted' },
+  // 兼容历史数据
+  FROZEN: { text: '已支付·待交付', tone: 'info' },
+  VERIFIED: { text: '已核销', tone: 'ok' },
+  SETTLED: { text: '已完成', tone: 'ok' }
 }
+
+export const MEET_STATUS = {
+  PROPOSED: { text: '待确认', tone: 'warn' },
+  CONFIRMED: { text: '已确认', tone: 'ok' },
+  CANCELED: { text: '已取消', tone: 'muted' }
+}
+
+export const MEET_TYPE = { TRADE: '交易约见', RETURN: '退货约见' }
+
+export const meetStatusText = (s) => MEET_STATUS[s]?.text || s || '未知'
 
 export const LISTING_STATUS = {
   ON_SALE: { text: '在售', tone: 'ok' },

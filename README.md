@@ -203,7 +203,10 @@ second-hand_bookstore/
 
 ## 已知限制
 
-- **短信、身份证核验、人脸识别、ISBN 查询当前都是 mock**（`app.mock-sms` / `app.mock-identity` 开关），换真实供应商只改 `SmsService` / `IdentityService` / `IsbnService`，接口契约不变；支付同为 mock。
+- **短信通道可切真实供应商**：默认 `app.sms-provider=mock`（验证码不真发、随接口回传，冒烟脚本与离线演示用）；
+  置 `spug` + `app.spug-template-code` 即接 **Spug 推送助手官方短信验证码模板**（一次 `POST /sms/<模板编码>`，
+  无需申请短信签名）。真实模式不再回传 `devCode`。身份证核验、人脸识别、ISBN 查询仍是 mock
+  （`app.mock-identity` 开关）。
 - 推荐是规则召回（同课程 + 收藏共现），不是模型排序；数据量上来后可替换为 ItemCF。
 - 管理后台默认走 mock，接真后端需改 `admin/.env`。
 - 用户端 Web 的图片只接受 URL（后端不落盘），打包 APK 时须把 `VITE_API_BASE` 指向公网后端并配 HTTPS。

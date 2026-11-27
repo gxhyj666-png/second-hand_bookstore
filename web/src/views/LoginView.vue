@@ -10,30 +10,81 @@
       <h2>欢迎回来</h2>
       <p class="muted sub">登录后即可发布教材、接龙拼单和查看订单。</p>
 
-      <van-cell-group inset class="form-group">
-        <van-field
-          v-model="account"
-          label="账号"
-          placeholder="请输入手机号"
-          type="tel"
-          maxlength="11"
-          clearable
-          left-icon="user-o"
-        />
-        <van-field
-          v-model="password"
-          label="密码"
-          placeholder="请输入密码"
-          :type="showPwd ? 'text' : 'password'"
-          left-icon="lock"
-          clearable
-          @keyup.enter="submit"
-        >
-          <template #right-icon>
-            <van-icon :name="showPwd ? 'eye-o' : 'closed-eye'" class="eye" @click="showPwd = !showPwd" />
-          </template>
-        </van-field>
-      </van-cell-group>
+      <van-tabs v-model:active="mode" color="var(--brand)" title-active-color="var(--brand)" class="login-tabs">
+        <van-tab title="短信验证码" name="sms" />
+        <van-tab title="账号密码" name="password" />
+      </van-tabs>
+
+      <!-- 短信验证码登录 -->
+      <template v-if="mode === 'sms'">
+        <van-cell-group inset class="form-group">
+          <van-field
+            v-model="phone"
+            label="手机号"
+            placeholder="请输入 11 位手机号"
+            type="tel"
+            maxlength="11"
+            clearable
+            left-icon="phone-o"
+          />
+          <van-field
+            v-model="code"
+            label="验证码"
+            placeholder="请输入验证码"
+            type="digit"
+            maxlength="6"
+            left-icon="shield-o"
+            @keyup.enter="submit"
+          >
+            <template #button>
+              <van-button
+                size="small"
+                round
+                plain
+                type="primary"
+                :loading="sending"
+                :disabled="countdown > 0"
+                @click="sendCode"
+              >
+                {{ countdown > 0 ? `${countdown}s` : '获取验证码' }}
+              </van-button>
+            </template>
+          </van-field>
+        </van-cell-group>
+
+        <p class="sms-tip muted">
+          <van-icon name="info-o" />
+          开发模式下验证码会自动回填，正式环境通过短信下发。
+        </p>
+      </template>
+
+      <!-- 账号密码登录 -->
+      <template v-else>
+        <van-cell-group inset class="form-group">
+          <van-field
+            v-model="account"
+            label="账号"
+            placeholder="请输入手机号"
+            type="tel"
+            maxlength="11"
+            clearable
+            left-icon="user-o"
+          />
+          <van-field
+            v-model="password"
+            label="密码"
+            placeholder="请输入密码"
+            :type="showPwd ? 'text' : 'password'"
+            left-icon="lock"
+            clearable
+            @keyup.enter="submit"
+          >
+            <template #right-icon>
+              <van-icon :name="showPwd ? 'eye-o' : 'closed-eye'" class="eye" @click="showPwd = !showPwd" />
+            </template>
+          </van-field>
+        </van-cell-group>
+      </template>
 
       <div class="submit-wrap">
         <van-button block round type="primary" :loading="loading" loading-text="登录中" @click="submit">
@@ -50,21 +101,23 @@
         <div class="demo-row">
           <button type="button" class="demo-item" @click="fillDemo('buyer')">
             <strong>买家</strong>
-            <span>13800000002 / 123456</span>
+            <span>13800000002</span>
           </button>
           <button type="button" class="demo-item" @click="fillDemo('seller')">
             <strong>卖家</strong>
-            <span>13800000003 / 123456</span>
+            <span>13800000003</span>
           </button>
         </div>
-        <p class="demo-tip">后端种子数据用手机号作为登录账号，用户名 buyer001/seller001 无法直接登录。</p>
+        <p class="demo-tip">
+          开发模式点“获取验证码”会直接回填验证码；账号密码登录的演示密码为 123456。
+        </p>
       </section>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { onBeforeUnmount, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { showToast } from 'vant'
 import { useUserStore } from '@/store/user'
@@ -73,19 +126,26 @@ const route = useRoute()
 const router = useRouter()
 const store = useUserStore()
 
+const mode = ref('sms')
+const phone = ref('')
+const code = ref('')
 const account = ref('')
 const password = ref('')
 const showPwd = ref(false)
 const loading = ref(false)
+const sending = ref(false)
+const countdown = ref(0)
+let timer = null
 
 const DEMO = {
-  buyer: { account: '13800000002', password: '123456' },
-  seller: { account: '13800000003', password: '123456' }
+  buyer: '13800000002',
+  seller: '13800000003'
 }
 
 function fillDemo(role) {
-  account.value = DEMO[role].account
-  password.value = DEMO[role].password
+  phone.value = DEMO[role]
+  account.value = DEMO[role]
+  password.value = '123456'
 }
 
 function goRegister() {
@@ -101,8 +161,65 @@ function redirectTarget() {
   return '/home'
 }
 
+function startCountdown(seconds = 60) {
+  stopCountdown()
+  countdown.value = Math.max(1, Number(seconds) || 60)
+  timer = setInterval(() => {
+    countdown.value -= 1
+    if (countdown.value <= 0) stopCountdown()
+  }, 1000)
+}
+
+function stopCountdown() {
+  if (timer) {
+    clearInterval(timer)
+    timer = null
+  }
+  countdown.value = 0
+}
+
+async function sendCode() {
+  if (sending.value || countdown.value > 0) return
+  const p = phone.value.trim()
+  if (!/^1\d{10}$/.test(p)) return showToast('请输入正确的 11 位手机号')
+  sending.value = true
+  try {
+    const res = await store.sendSmsCode(p)
+    if (res?.devCode) {
+      code.value = String(res.devCode)
+      showToast('开发模式验证码已回填')
+    } else {
+      showToast('验证码已发送，请查收短信')
+    }
+    startCountdown(res?.ttlSeconds || 60)
+  } catch {
+    // 请求层已经提示
+  } finally {
+    sending.value = false
+  }
+}
+
 async function submit() {
   if (loading.value) return
+
+  if (mode.value === 'sms') {
+    const p = phone.value.trim()
+    if (!/^1\d{10}$/.test(p)) return showToast('请输入正确的 11 位手机号')
+    if (!/^\d{4,6}$/.test(code.value.trim())) return showToast('请输入验证码')
+    loading.value = true
+    try {
+      await store.smsLogin(p, code.value.trim())
+      showToast('登录成功')
+      stopCountdown()
+      router.replace(redirectTarget())
+    } catch {
+      // 请求层已经提示，保留输入方便重试
+    } finally {
+      loading.value = false
+    }
+    return
+  }
+
   const acc = account.value.trim()
   if (!acc) return showToast('请输入手机号')
   if (!password.value) return showToast('请输入密码')
@@ -117,6 +234,8 @@ async function submit() {
     loading.value = false
   }
 }
+
+onBeforeUnmount(stopCountdown)
 </script>
 
 <style scoped>
@@ -166,8 +285,21 @@ async function submit() {
   font-weight: 800;
 }
 .sub {
-  margin: 0 8px 14px;
+  margin: 0 8px 10px;
   font-size: 12px;
+}
+.login-tabs {
+  margin: 0 8px 8px;
+}
+.login-tabs :deep(.van-tabs__nav) {
+  background: transparent;
+  padding-left: 0;
+  padding-right: 0;
+}
+.login-tabs :deep(.van-tab) {
+  flex: none;
+  padding: 0 14px 0 0;
+  font-size: 14px;
 }
 .form-group {
   margin: 0;
@@ -175,6 +307,14 @@ async function submit() {
 .eye {
   color: var(--muted);
   padding: 6px;
+}
+.sms-tip {
+  margin: 8px 20px 0;
+  font-size: 11px;
+  line-height: 1.5;
+  display: flex;
+  gap: 4px;
+  align-items: flex-start;
 }
 .submit-wrap {
   padding: 18px 16px 0;

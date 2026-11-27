@@ -21,7 +21,8 @@ export const useUserStore = defineStore('user', {
     userId: (s) => s.user?.id || null,
     nickname: (s) => s.user?.nickname || s.user?.realName || '同学',
     creditScore: (s) => s.user?.creditScore ?? 100,
-    verified: (s) => s.user?.verifyState === 'VERIFIED'
+    verified: (s) => s.user?.verifyState === 'VERIFIED',
+    canTrade: (s) => Boolean(s.user?.idVerified && s.user?.studentVerified)
   },
   actions: {
     async login(account, password) {
@@ -30,6 +31,21 @@ export const useUserStore = defineStore('user', {
       this.user = data.user || (await authApi.me())
       localStorage.setItem(USER_KEY, JSON.stringify(this.user))
       return this.user
+    },
+    async sendSmsCode(phone) {
+      return authApi.smsCode({ phone })
+    },
+    async smsLogin(phone, code) {
+      const data = await authApi.smsLogin({ phone, code })
+      this.setToken(data.token)
+      this.user = data.user || (await authApi.me())
+      localStorage.setItem(USER_KEY, JSON.stringify(this.user))
+      return this.user
+    },
+    setUser(user) {
+      this.user = user || null
+      if (user) localStorage.setItem(USER_KEY, JSON.stringify(user))
+      else localStorage.removeItem(USER_KEY)
     },
     async register(payload) {
       const data = await authApi.register(payload)

@@ -5,6 +5,7 @@ import com.textbook.loop.common.BizException;
 import com.textbook.loop.config.AppProps;
 import com.textbook.loop.domain.SysSmsCode;
 import com.textbook.loop.mapper.SysSmsCodeMapper;
+import com.textbook.loop.sms.SmsProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -16,8 +17,9 @@ import java.time.LocalDateTime;
 /**
  * 短信验证码：登录 / 交易二次验证。
  *
- * <p>开发环境（app.mock-sms=true）不真正发短信，验证码写日志并通过接口回传，
- * 方便自动化测试与答辩演示；生产把 app.mock-sms 置 false 并接入阿里云 SMS。</p>
+ * <p>真实发送交给 {@link SmsProvider}：开发默认 mock（验证码写日志并随接口回传，方便自动化与演示），
+ * 生产把 {@code app.sms-provider} 置为 {@code spug} 并填 {@code app.spug-template-code}，
+ * 即走 Spug 推送助手的官方短信验证码模板。</p>
  */
 @Service
 public class SmsService {
@@ -27,10 +29,12 @@ public class SmsService {
 
     private final SysSmsCodeMapper codeMapper;
     private final AppProps props;
+    private final SmsProvider provider;
 
-    public SmsService(SysSmsCodeMapper codeMapper, AppProps props) {
+    public SmsService(SysSmsCodeMapper codeMapper, AppProps props, SmsProvider provider) {
         this.codeMapper = codeMapper;
         this.props = props;
+        this.provider = provider;
     }
 
     /**
@@ -60,9 +64,17 @@ public class SmsService {
         row.setExpireAt(now.plusSeconds(props.getSmsCodeTtlSeconds()));
         row.setUsed(0);
         codeMapper.insert(row);
-        log.info("【短信模拟】发送 {} 的 {} 验证码：{}（{} 秒内有效）",
-                phone, purpose, code, props.getSmsCodeTtlSeconds());
-        return props.isMockSms() ? code : null;
+        int ttl = props.getSmsCodeTtlSeconds();
+        provider.sendCode(phone, code, ttl);
+        log.info("验证码已创建：phone={} purpose={} provider={} ttl={}s", phone, purpose, provider.name(), ttl);
+        return provider.mock() ? code : null;
+    }
+
+    /**
+     * 当前生效的短信通道名（mock / spug），供接口自检与前端提示。
+     */
+    public String providerName() {
+        return provider.name();
     }
 
     /**

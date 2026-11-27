@@ -57,9 +57,9 @@
               <van-button size="small" round plain @click.stop="cancel(o)">取消订单</van-button>
               <van-button size="small" round type="primary" @click.stop="pay(o)">去支付</van-button>
             </div>
-            <div v-else-if="o.status === 'FROZEN' || o.status === 'WAIT_VERIFY'" class="order-hint">
+            <div v-else-if="['WAIT_VERIFY', 'REFUNDING', 'REFUND_AGREED', 'ARBITRATING'].includes(o.status)" class="order-hint">
               <van-icon name="info-o" />
-              {{ role === 'buyer' ? '到店后请出示核销码' : '等待买家到店核销' }}
+              {{ hintOf(o) }}
               <span class="link" @click.stop="goDetail(o)">查看详情</span>
             </div>
           </div>
@@ -94,7 +94,8 @@ const STATUS_TABS = [
   { text: '全部', value: '' },
   { text: '待支付', value: 'PENDING_PAY' },
   { text: '待核销', value: 'WAIT_VERIFY' },
-  { text: '已完成', value: 'SETTLED' }
+  { text: '退款中', value: 'REFUNDING' },
+  { text: '已完成', value: 'COMPLETED' }
 ]
 
 const PAGE_SIZE = 10
@@ -132,10 +133,21 @@ function counterpartOf(o) {
 }
 
 function statusTone(s) {
-  if (s === 'PENDING_PAY') return 'warn'
-  if (s === 'REFUNDED') return 'danger'
-  if (s === 'CLOSED') return 'muted'
+  if (s === 'PENDING_PAY' || s === 'REFUNDING' || s === 'REFUND_AGREED') return 'warn'
+  if (s === 'ARBITRATING') return 'danger'
+  if (s === 'REFUNDED' || s === 'CLOSED') return 'muted'
   return ''
+}
+
+function hintOf(o) {
+  const s = o.status
+  if (s === 'WAIT_VERIFY') {
+    return role.value === 'buyer' ? '到店后请出示核销码' : '等待买家到店核销'
+  }
+  if (s === 'REFUNDING') return role.value === 'buyer' ? '退款申请等待卖家处理' : '买家申请退款，请尽快处理'
+  if (s === 'REFUND_AGREED') return '已同意退货，等待买家确认退货完成'
+  if (s === 'ARBITRATING') return '平台正在介入处理退款纠纷'
+  return orderStatusText(s)
 }
 
 function onImgError(e) {

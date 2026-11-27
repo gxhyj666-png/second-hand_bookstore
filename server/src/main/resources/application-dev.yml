@@ -23,3 +23,6 @@ mybatis-plus:
 app:
   # 开发期把短信发送间隔压到 3 秒，方便反复跑 tools/smoke.ps1（生产默认 60 秒）
   sms-interval-seconds: 3
+  # 短信通道：mock = 验证码打印到日志并随 /v1/auth/sms-code 回传（离线演示用）
+  #           spug = 走 Spug 推送助手官方短信验证码模板（需要 app.spug-template-code）
+  sms-provider: mock

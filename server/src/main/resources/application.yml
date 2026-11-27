@@ -36,6 +36,15 @@ app:
   commission-rate: 0.05
   verify-secret: ${APP_VERIFY_SECRET:textbook-loop-verify-secret-0123456789}
   verify-window-seconds: 30
+  verify-code-ttl-minutes: 15
+  sms-code-ttl-seconds: 300
+  # 短信通道：mock（默认，验证码回传）| spug（Spug 推送助手短信验证码）
+  sms-provider: ${APP_SMS_PROVIDER:mock}
+  # Spug 模板编码：控制台「短信验证码 → 模板详情」里调用 URL 的 /sms/<这一串>
+  spug-template-code: ${APP_SPUG_TEMPLATE_CODE:}
+  spug-base-url: ${APP_SPUG_BASE_URL:https://push.spug.cc}
+  spug-timeout-seconds: 8
+  mock-identity: ${APP_MOCK_IDENTITY:true}
 
 logging:
   level:

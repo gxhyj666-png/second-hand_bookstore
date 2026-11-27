@@ -10,6 +10,9 @@
           <div class="name-row">
             <h1>{{ store.nickname }}</h1>
             <span v-if="store.verified" class="verify-tag">已认证</span>
+            <span class="trade-tag" :class="{ off: !store.canTrade }">
+              {{ store.canTrade ? '可交易' : '未认证' }}
+            </span>
           </div>
           <p>{{ [store.user?.college, store.user?.major].filter(Boolean).join(' · ') || '还没有填写学院和专业' }}</p>
         </div>
@@ -29,9 +32,9 @@
           <strong>{{ store.creditScore }}</strong>
           <span>信用分</span>
         </button>
-        <button type="button" class="stat" @click="router.push('/verify')">
+        <button type="button" class="stat" @click="router.push('/verify-center')">
           <strong class="small">{{ verifyText }}</strong>
-          <span>学号认证</span>
+          <span>认证状态</span>
         </button>
         <button type="button" class="stat" @click="router.push('/favorites')">
           <strong>收藏</strong>
@@ -46,12 +49,12 @@
     </header>
 
     <div class="container">
-      <section v-if="store.isLogin && !store.verified" class="verify-banner" @click="router.push('/verify')">
-        <van-icon name="idcard" size="22" />
+      <section v-if="store.isLogin && !store.canTrade" class="verify-banner" @click="router.push('/verify-center')">
+        <van-icon :name="store.user?.verifyState === 'PENDING' ? 'underway-o' : 'idcard'" size="22" />
         <div>
-          <strong>{{ store.user?.verifyState === 'PENDING' ? '学生认证审核中' : '完成学号认证' }}</strong>
+          <strong>{{ store.user?.verifyState === 'PENDING' ? '认证审核中' : '完成认证后才能交易' }}</strong>
           <p class="muted">
-            {{ store.user?.verifyState === 'PENDING' ? '已提交，等待管理员审核' : '认证后交易更受信任，快去认证吧' }}
+            {{ store.user?.verifyState === 'PENDING' ? '资料已提交，审核通过后即可交易' : verifyHint }}
           </p>
         </div>
         <van-icon name="arrow" />
@@ -97,6 +100,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { showConfirmDialog, showToast } from 'vant'
 import { useUserStore } from '@/store/user'
+import { verifyApi } from '@/api'
 
 const router = useRouter()
 const store = useUserStore()
@@ -108,28 +112,34 @@ const defaultPointName = ref('')
 const QUICK = [
   { text: '我的发布', path: '/search?mine=1', icon: 'notes-o' },
   { text: '我的收藏', path: '/favorites', icon: 'star-o' },
-  { text: '消息', path: '/notices', icon: 'chat-o', badge: true },
-  { text: '班级接龙', path: '/group-buys', icon: 'friends-o' }
+  { text: '私信', path: '/messages', icon: 'chat-o' },
+  { text: '消息通知', path: '/notices', icon: 'volume-o', badge: true }
 ]
 
 const MENU = [
+  { text: '实名 / 学生认证', path: '/verify-center', icon: 'idcard' },
   { text: '我的发布', path: '/search?mine=1', icon: 'notes-o' },
+  { text: '私信会话', path: '/messages', icon: 'chat-o' },
+  { text: '商户入驻', path: '/merchant', icon: 'shop-o' },
   { text: '信用记录', path: '/credit', icon: 'chart-trending-o' },
   { text: '纠纷工单', path: '/tickets', icon: 'service-o' },
   { text: '班级接龙', path: '/group-buys', icon: 'friends-o' },
   { text: '自提点', path: '/pickup', icon: 'location-o' },
-  { text: '个人资料', path: '/profile', icon: 'contact-o' },
-  { text: '学号认证', path: '/verify', icon: 'idcard' }
+  { text: '个人资料', path: '/profile', icon: 'contact-o' }
 ]
 
-const verifyText = computed(
-  () =>
-    ({
-      VERIFIED: '已认证',
-      PENDING: '审核中',
-      REJECTED: '未通过'
-    })[store.user?.verifyState] || '未认证'
-)
+const verifyText = computed(() => {
+  if (store.canTrade) return '可交易'
+  if (store.user?.idVerified || store.user?.studentVerified) return '待完善'
+  return '未认证'
+})
+
+const verifyHint = computed(() => {
+  if (!store.user?.idVerified) return '第 1 步：实名认证（姓名 + 身份证）'
+  if (!store.user?.studentVerified) return '第 2 步：学生认证（学校 + 学号）'
+  if (!store.user?.faceVerified) return '第 3 步：人脸核验'
+  return '认证完成，可以正常买卖教材'
+})
 
 function go(item) {
   router.push(item.path)
@@ -143,6 +153,20 @@ async function load() {
     // token 失效时请求层会跳登录，这里保持页面可用
   }
   store.refreshUnread()
+  try {
+    const vs = await verifyApi.status()
+    if (vs) {
+      store.setUser({
+        ...(store.user || {}),
+        idVerified: vs.idVerified,
+        studentVerified: vs.studentVerified,
+        faceVerified: vs.faceVerified,
+        verifyState: vs.verifyState || store.user?.verifyState
+      })
+    }
+  } catch {
+    // 认证状态查询失败不影响页面其它信息展示
+  }
   try {
     const raw = localStorage.getItem('tl_default_point')
     if (raw) defaultPointName.value = JSON.parse(raw)?.name || ''
@@ -233,6 +257,20 @@ onMounted(load)
   padding: 1px 6px;
   border-radius: 999px;
 }
+.trade-tag {
+  font-size: 10px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--brand);
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-weight: 700;
+}
+.trade-tag.off {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  font-weight: 400;
+}
 .setting {
   opacity: 0.9;
   cursor: pointer;
@@ -311,6 +349,11 @@ onMounted(load)
 }
 .verify-banner div {
   flex: 1;
+}
+.verify-banner.pending {
+  background: #eef4ff;
+  border-color: #d3e2fb;
+  color: #3d6ea8;
 }
 .quick-grid {
   display: grid;

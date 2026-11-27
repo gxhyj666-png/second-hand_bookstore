@@ -45,6 +45,24 @@ export function getOrders(params) {
   return request.get('/v1/admin/orders', { params })
 }
 
+export function getOrderDetail(orderNo) {
+  return request.get(`/v1/orders/${orderNo}`)
+}
+
+// ---------- 退款仲裁 ----------
+export function judgeRefund(refundId, data) {
+  return request.post(`/v1/orders/refunds/${refundId}/judge`, data)
+}
+
+// ---------- 商户审核 ----------
+export function getMerchants(params) {
+  return request.get('/v1/admin/merchants', { params })
+}
+
+export function reviewMerchant(id, data) {
+  return request.post(`/v1/admin/merchants/${id}/review`, data)
+}
+
 // ---------- 用户 ----------
 export function getUsers(params) {
   return request.get('/v1/admin/users', { params })

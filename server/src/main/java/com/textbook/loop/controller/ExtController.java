@@ -65,7 +65,8 @@ public class ExtController {
         String code = smsService.send(req.phone(), "LOGIN");
         Map<String, Object> map = new java.util.HashMap<>();
         map.put("sent", true);
-        // 开发模式回传验证码，方便演示与自动化测试；生产环境 mock 关闭后为 null
+        map.put("provider", smsService.providerName());
+        // 只有 mock 通道才回传验证码（方便演示与自动化）；接 Spug/真实短信后为 null
         map.put("devCode", code);
         return ApiResponse.ok(map);
     }

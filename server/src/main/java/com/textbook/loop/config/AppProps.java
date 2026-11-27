@@ -29,8 +29,49 @@ public class AppProps {
 
     /** 同一手机号两次发送验证码的最小间隔（秒）；开发期可调小以便反复跑冒烟脚本 */
     private int smsIntervalSeconds = 60;
+    /** 短信通道：mock（默认，验证码回传）/ spug（Spug 推送助手短信验证码接口） */
+    private String smsProvider = "mock";
+    /** Spug 推送助手：官方短信验证码模板编码（{@code /sms/<TEMPLATE_CODE>} 里的那一段） */
+    private String spugTemplateCode = "";
+    /** Spug 推送助手接口基地址 */
+    private String spugBaseUrl = "https://push.spug.cc";
+    /** 调用 Spug 的超时（秒） */
+    private int spugTimeoutSeconds = 8;
     /** 开发模式：实名/学生/人脸走本地模拟通过；生产置 false 接三方实人认证 */
     private boolean mockIdentity = true;
+
+    public String getSmsProvider() {
+        return smsProvider;
+    }
+
+    public void setSmsProvider(String smsProvider) {
+        this.smsProvider = smsProvider;
+    }
+
+    public String getSpugTemplateCode() {
+        return spugTemplateCode;
+    }
+
+    public void setSpugTemplateCode(String spugTemplateCode) {
+        this.spugTemplateCode = spugTemplateCode;
+    }
+
+    public String getSpugBaseUrl() {
+        return spugBaseUrl;
+    }
+
+    public void setSpugBaseUrl(String spugBaseUrl) {
+        this.spugBaseUrl = spugBaseUrl;
+    }
+
+    public int getSpugTimeoutSeconds() {
+        return spugTimeoutSeconds;
+    }
+
+    public void setSpugTimeoutSeconds(int spugTimeoutSeconds) {
+        this.spugTimeoutSeconds = spugTimeoutSeconds;
+    }
+
 
     public int getVerifyCodeTtlMinutes() {
         return verifyCodeTtlMinutes;

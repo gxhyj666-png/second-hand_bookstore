@@ -8,6 +8,30 @@
         <p>填写真实品相与取书地点，成交更快。</p>
       </div>
 
+      <!-- ISBN 扫码 / 输入 -->
+      <section class="card isbn-card">
+        <div class="between">
+          <strong>ISBN 识别</strong>
+          <span class="muted small">扫码或手动输入，自动带出书籍信息</span>
+        </div>
+        <div class="isbn-row">
+          <van-field
+            v-model="isbn"
+            class="isbn-input"
+            placeholder="ISBN-10 / ISBN-13"
+            maxlength="17"
+            clearable
+            @keyup.enter="lookupIsbn"
+          />
+          <van-button size="small" round type="primary" :loading="isbnLoading" @click="lookupIsbn">
+            查询
+          </van-button>
+        </div>
+        <p class="muted small isbn-tip">
+          开发期没有扫码组件，可直接输入书背条形码下方的 ISBN；未收录时可手动选择教材。
+        </p>
+      </section>
+
       <van-cell-group inset class="form-group">
         <van-cell title="教材" :value="book ? book.title : '请选择'" is-link @click="openBookPopup" />
         <van-cell v-if="book" title="作者 / 出版社" :value="[book.author, book.publisher].filter(Boolean).join(' · ') || '--'" />
@@ -58,30 +82,25 @@
         />
       </van-cell-group>
 
-      <section class="card image-card">
+      <!-- 7 张照片位 -->
+      <section class="card photo-card">
         <div class="between">
-          <strong>教材图片</strong>
-          <span class="muted">{{ images.length }} / 3</span>
+          <strong>教材照片</strong>
+          <span class="muted small">{{ photoCount }} / 7</span>
         </div>
-        <p class="muted image-tip">后端只保存图片地址，请粘贴以 http(s) 开头的图片链接，第一张作为封面。</p>
-        <div v-for="(_, idx) in images" :key="idx" class="image-row">
-          <van-field v-model="images[idx]" :placeholder="`图片 ${idx + 1} 链接`" />
-          <button class="remove" type="button" aria-label="删除图片" @click="removeImage(idx)">
-            <van-icon name="cross" size="16" />
-          </button>
+        <p class="muted photo-tip">
+          封面、封底、版权页为必传，内页最多 4 张。开发期不上传对象存储，仅本地预览并提交 URL 占位串。
+        </p>
+        <div class="photo-grid">
+          <div v-for="slot in PHOTO_SLOTS" :key="slot.type" class="photo-item">
+            <DemoUploader
+              v-model="photos[slot.type]"
+              :label="slot.label"
+              :file-key="slot.type.toLowerCase()"
+            />
+            <p class="slot-type" :class="{ req: slot.required }">{{ slot.type }}{{ slot.required ? ' · 必传' : '' }}</p>
+          </div>
         </div>
-        <van-button
-          v-if="images.length < 3"
-          size="small"
-          round
-          plain
-          type="primary"
-          icon="plus"
-          class="add-image"
-          @click="addImage"
-        >
-          添加图片链接
-        </van-button>
       </section>
 
       <div class="submit-wrap">
@@ -177,11 +196,12 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast } from 'vant'
-import { catalogApi, listingApi } from '@/api'
+import { catalogApi, isbnApi, listingApi } from '@/api'
 import { CONDITION_OPTIONS, conditionText, money } from '@/utils/format'
+import DemoUploader from '@/components/DemoUploader.vue'
 import EmptyState from '@/components/EmptyState.vue'
 
 const router = useRouter()
@@ -190,6 +210,9 @@ const book = ref(null)
 const course = ref(null)
 const pi = ref(null)
 
+const isbn = ref('')
+const isbnLoading = ref(false)
+
 const form = reactive({
   price: '',
   condition: '',
@@ -197,7 +220,25 @@ const form = reactive({
   dorm: ''
 })
 
-const images = ref([''])
+const PHOTO_SLOTS = [
+  { type: 'COVER', label: '封面', required: true },
+  { type: 'BACK', label: '封底', required: true },
+  { type: 'PUBLISH_DATE', label: '版权页', required: true },
+  { type: 'CONTENT1', label: '内页 1', required: false },
+  { type: 'CONTENT2', label: '内页 2', required: false },
+  { type: 'CONTENT3', label: '内页 3', required: false },
+  { type: 'CONTENT4', label: '内页 4', required: false }
+]
+const photos = reactive({
+  COVER: '',
+  BACK: '',
+  PUBLISH_DATE: '',
+  CONTENT1: '',
+  CONTENT2: '',
+  CONTENT3: '',
+  CONTENT4: ''
+})
+const photoCount = computed(() => PHOTO_SLOTS.filter((s) => photos[s.type]).length)
 const submitting = ref(false)
 
 const bookPopup = ref(false)
@@ -223,6 +264,41 @@ function priceBasisText(basis) {
 function onConditionConfirm({ selectedOptions }) {
   form.condition = selectedOptions?.[0]?.value || ''
   conditionPopup.value = false
+}
+
+async function lookupIsbn() {
+  if (isbnLoading.value) return
+  const clean = isbn.value.replace(/[^0-9Xx]/g, '')
+  if (!(clean.length === 10 || clean.length === 13)) {
+    return showToast('ISBN 应为 10 位或 13 位')
+  }
+  isbnLoading.value = true
+  try {
+    const res = await isbnApi.lookup(clean)
+    if (!res?.found) {
+      showToast(res?.message || '本地教材库未收录，请手动选择或填写')
+      openBookPopup()
+      return
+    }
+    // 兼容 { found, textbook } 与扁平字段两种返回
+    const t = res.textbook || res
+    const id = res.textbookId ?? t.id
+    book.value = {
+      id,
+      title: res.title ?? t.title,
+      author: res.author ?? t.author,
+      publisher: res.publisher ?? t.publisher,
+      edition: res.edition ?? t.edition,
+      price: res.price ?? t.price
+    }
+    if (!form.price && book.value.price) form.price = (Number(book.value.price) * 0.4).toFixed(2)
+    showToast(`已识别：${book.value.title || '教材'}`)
+    if (id) loadPriceIndex(id)
+  } catch {
+    // 请求层已经提示
+  } finally {
+    isbnLoading.value = false
+  }
 }
 
 function openBookPopup() {
@@ -294,26 +370,18 @@ function chooseCourse(c) {
   coursePopup.value = false
 }
 
-function addImage() {
-  if (images.value.length < 3) images.value.push('')
-}
-
-function removeImage(idx) {
-  images.value.splice(idx, 1)
-  if (!images.value.length) images.value.push('')
-}
-
 async function submit() {
   if (submitting.value) return
   if (!book.value) return showToast('请先选择教材')
   const price = Number(form.price)
   if (!(price > 0)) return showToast('请填写大于 0 的售价')
   if (!form.condition) return showToast('请选择教材品相')
-
-  const urls = images.value.map((u) => String(u || '').trim()).filter(Boolean)
-  if (urls.some((u) => !/^https?:\/\//i.test(u))) {
-    return showToast('图片链接需以 http:// 或 https:// 开头')
+  if (!photos.COVER || !photos.BACK || !photos.PUBLISH_DATE) {
+    return showToast('请至少上传封面、封底和版权页')
   }
+
+  const photoList = PHOTO_SLOTS.filter((s) => photos[s.type]).map((s) => ({ type: s.type, url: photos[s.type] }))
+  const urls = photoList.map((p) => p.url)
 
   submitting.value = true
   try {
@@ -326,9 +394,18 @@ async function submit() {
       dorm: form.dorm.trim(),
       images: urls
     })
-    showToast('发布成功')
-    if (res?.id) router.replace(`/listing/${res.id}`)
-    else router.replace('/search?mine=1')
+    if (res?.id) {
+      try {
+        await listingApi.savePhotos(res.id, photoList)
+      } catch {
+        showToast('教材已发布，照片保存失败，可稍后在详情页重试')
+      }
+      showToast('发布成功')
+      router.replace(`/listing/${res.id}`)
+    } else {
+      showToast('发布成功')
+      router.replace('/search?mine=1')
+    }
   } catch {
     // 请求层已经提示，保留表单内容方便重试
   } finally {
@@ -360,6 +437,31 @@ onMounted(() => {
   color: var(--muted);
   font-size: 13px;
 }
+.small {
+  font-size: 11px;
+}
+.isbn-card {
+  margin-bottom: 12px;
+}
+.isbn-card strong {
+  font-size: 14px;
+}
+.isbn-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+.isbn-input {
+  flex: 1;
+  background: var(--bg);
+  border-radius: 8px;
+  padding: 6px 10px;
+}
+.isbn-tip {
+  margin: 8px 0 0;
+  line-height: 1.5;
+}
 .form-group {
   margin: 10px 0 0;
   overflow: hidden;
@@ -382,42 +484,32 @@ onMounted(() => {
 .price-hint strong {
   font-size: 15px;
 }
-.image-card {
+.photo-card {
   margin-top: 12px;
 }
-.image-card strong {
+.photo-card strong {
   font-size: 14px;
 }
-.image-tip {
+.photo-tip {
   margin: 6px 0 10px;
   line-height: 1.5;
 }
-.image-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 8px;
-}
-.image-row :deep(.van-cell) {
-  flex: 1;
-  padding: 8px 10px;
-  background: var(--bg);
-  border-radius: 8px;
-}
-.remove {
-  border: 0;
-  background: #f4f5f6;
-  color: var(--muted);
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
+.photo-grid {
   display: grid;
-  place-items: center;
-  cursor: pointer;
-  flex: none;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
 }
-.add-image {
-  margin-top: 2px;
+.photo-item {
+  min-width: 0;
+}
+.slot-type {
+  margin: 4px 0 0;
+  font-size: 10px;
+  color: var(--muted);
+  text-align: center;
+}
+.slot-type.req {
+  color: var(--brand);
 }
 .submit-wrap {
   padding: 18px 0 24px;

@@ -112,6 +112,17 @@
           </template>
           <template v-else>
             <van-button
+              class="chat-btn"
+              size="small"
+              round
+              plain
+              icon="chat-o"
+              :loading="chatBusy"
+              @click="openChat"
+            >
+              聊一聊
+            </van-button>
+            <van-button
               class="want-btn"
               round
               type="primary"
@@ -188,7 +199,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { showConfirmDialog, showToast } from 'vant'
-import { catalogApi, listingApi, orderApi, pickupApi } from '@/api'
+import { catalogApi, conversationApi, listingApi, orderApi, pickupApi } from '@/api'
 import { useUserStore } from '@/store/user'
 import { conditionText, listingStatusText, money, newRequestId, relTime } from '@/utils/format'
 import PriceIndex from '@/components/PriceIndex.vue'
@@ -213,6 +224,7 @@ const creating = ref(false)
 
 const favBusy = ref(false)
 const offlining = ref(false)
+const chatBusy = ref(false)
 
 const listing = computed(() => detail.value?.listing || null)
 const textbook = computed(() => detail.value?.textbook || null)
@@ -316,6 +328,30 @@ async function toggleFavorite() {
     // 请求层已经提示
   } finally {
     favBusy.value = false
+  }
+}
+
+async function openChat() {
+  if (!store.isLogin) return goLogin()
+  if (isOwner.value) return showToast('这是你自己发布的教材')
+  if (chatBusy.value) return
+  chatBusy.value = true
+  try {
+    const c = await conversationApi.create(Number(id))
+    if (c?.id) {
+      router.push({
+        path: `/chat/${c.id}`,
+        query: {
+          listingId: id,
+          title: listing.value?.title || '',
+          name: listing.value?.sellerNickname || '卖家'
+        }
+      })
+    }
+  } catch {
+    // 请求层已经提示
+  } finally {
+    chatBusy.value = false
   }
 }
 
@@ -614,6 +650,9 @@ onMounted(load)
 }
 .want-btn {
   flex: 1;
+}
+.chat-btn {
+  flex: none;
 }
 .popup {
   padding: 16px 14px calc(14px + env(safe-area-inset-bottom, 0px));

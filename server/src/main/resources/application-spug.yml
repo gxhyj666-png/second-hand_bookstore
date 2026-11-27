@@ -1,0 +1,28 @@
+# 真实短信通道：Spug 推送助手（https://push.spug.cc）官方短信验证码模板
+#
+# 用法（dev 基础配置 + 本 profile 叠加，保持 H2 零依赖）：
+#   java -jar server/target/textbook-loop-server-0.1.0.jar --spring.profiles.active=dev,spug
+#
+# 凭证怎么给（二选一，都只放服务端）：
+#   1) 环境变量：APP_SPUG_TEMPLATE_CODE=<模板编码>
+#   2) 本机私有文件：server/src/main/resources/application-spug-local.yml（已被 .gitignore 忽略），内容：
+#        app:
+#          spug-template-code: <模板编码>
+#
+# 模板编码在 Spug 控制台 → 短信验证码 → 选官方模板 → 模板详情里复制完整调用 URL：
+#   https://push.spug.cc/sms/<TEMPLATE_CODE>   ← 斜杠后面那一段就是编码
+#
+# 注意：开真实短信后 /v1/auth/sms-code 不再回传 devCode，
+#       tools/smoke.ps1、tools/e2e-trade.ps1 依赖 devCode，跑脚本请用默认 mock 配置。
+
+spring:
+  config:
+    # 可选导入本机私有覆盖文件（不存在也不报错）
+    import: optional:classpath:application-spug-local.yml
+
+app:
+  sms-provider: spug
+  # 留空时由 SmsConfig 回退 mock 并告警，避免启动即挂；真实使用请通过上面两种方式注入
+  spug-template-code: ${APP_SPUG_TEMPLATE_CODE:}
+  spug-base-url: https://push.spug.cc
+  spug-timeout-seconds: 8

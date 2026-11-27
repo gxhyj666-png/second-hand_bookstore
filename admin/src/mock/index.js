@@ -18,6 +18,13 @@ function cover(text, index = 0) {
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
 }
 
+// 商户资质图（横向营业执照占位图）
+function license(text, index = 0) {
+  const color = COLORS[index % COLORS.length]
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="160" height="100"><rect width="160" height="100" rx="6" fill="#fbfcff" stroke="${color}" stroke-width="2"/><rect x="10" y="10" width="140" height="80" rx="4" fill="${color}" fill-opacity="0.08"/><text x="80" y="46" font-size="14" fill="${color}" text-anchor="middle" font-family="sans-serif">${text}</text><text x="80" y="68" font-size="11" fill="#8a94a6" text-anchor="middle" font-family="sans-serif">营业执照（Mock）</text></svg>`
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
+}
+
 const textbooks = [
   { id: 1, isbn13: '9787040396638', title: '高等数学（第七版）上册', author: '同济大学数学系', publisher: '高等教育出版社', edition: '第七版', publishYear: 2014, price: 45.0, category: '公共课', coverUrl: cover('高数上', 0), status: 'ENABLED' },
   { id: 2, isbn13: '9787040396645', title: '高等数学（第七版）下册', author: '同济大学数学系', publisher: '高等教育出版社', edition: '第七版', publishYear: 2014, price: 42.0, category: '公共课', coverUrl: cover('高数下', 1), status: 'ENABLED' },
@@ -63,52 +70,74 @@ const listings = [
 
 const ORDER_STATUS_TEXT = {
   PENDING_PAY: '待支付',
-  FROZEN: '已支付冻结',
   WAIT_VERIFY: '待核销',
-  VERIFIED: '已核销',
-  SETTLED: '已结算',
+  COMPLETED: '已完成',
+  REFUNDING: '退款中',
+  REFUND_AGREED: '同意退款',
   REFUNDED: '已退款',
+  ARBITRATING: '仲裁中',
   CLOSED: '已关闭'
 }
 
 // 按当前状态反推状态流转时间轴，让抽屉里的 el-timeline 有真实感
 function timelineOf(createdAt, status) {
+  const flows = {
+    PENDING_PAY: ['PENDING_PAY'],
+    WAIT_VERIFY: ['PENDING_PAY', 'WAIT_VERIFY'],
+    COMPLETED: ['PENDING_PAY', 'WAIT_VERIFY', 'COMPLETED'],
+    REFUNDING: ['PENDING_PAY', 'WAIT_VERIFY', 'REFUNDING'],
+    REFUND_AGREED: ['PENDING_PAY', 'WAIT_VERIFY', 'REFUNDING', 'REFUND_AGREED'],
+    REFUNDED: ['PENDING_PAY', 'WAIT_VERIFY', 'REFUNDING', 'REFUNDED'],
+    ARBITRATING: ['PENDING_PAY', 'WAIT_VERIFY', 'REFUNDING', 'ARBITRATING'],
+    CLOSED: ['PENDING_PAY', 'CLOSED']
+  }
+  const offsets = [0, 3, 60, 120]
+  const flow = flows[status] || [status]
   const base = dayjs(createdAt)
-  const flow = ['PENDING_PAY', 'FROZEN', 'WAIT_VERIFY', 'VERIFIED', 'SETTLED']
-  const offsets = [0, 3, 55, 320, 3000]
-  let last = flow.indexOf(status)
-  if (status === 'CLOSED') last = 0
-  if (status === 'REFUNDED') last = 3
-  const list = []
-  for (let i = 0; i <= last; i += 1) {
-    list.push({
-      status: flow[i],
-      text: ORDER_STATUS_TEXT[flow[i]],
-      time: base.add(offsets[i], 'minute').format('YYYY-MM-DD HH:mm:ss')
-    })
-  }
-  if (status === 'CLOSED') {
-    list.push({ status: 'CLOSED', text: ORDER_STATUS_TEXT.CLOSED, time: base.add(20, 'minute').format('YYYY-MM-DD HH:mm:ss') })
-  }
-  if (status === 'REFUNDED') {
-    list.push({ status: 'REFUNDED', text: ORDER_STATUS_TEXT.REFUNDED, time: base.add(340, 'minute').format('YYYY-MM-DD HH:mm:ss') })
-  }
-  return list
+  return flow.map((item, index) => ({
+    status: item,
+    text: ORDER_STATUS_TEXT[item] || item,
+    time: base.add(offsets[index] || 0, 'minute').format('YYYY-MM-DD HH:mm:ss')
+  }))
 }
 
 const rawOrders = [
-  { id: 1, orderNo: 'TB20261127103001', buyer: '小黄同学', seller: '学长清仓', title: '高等数学（第七版）上册', amount: 15.0, status: 'PENDING_PAY', point: '图书馆西门自提点', createdAt: '2026-11-27 10:30:00' },
-  { id: 2, orderNo: 'TB20261126141502', buyer: '李小雨', seller: '班委小张', title: '大学英语 综合教程 2（第3版）', amount: 12.0, status: 'FROZEN', point: '三食堂东门自提点', createdAt: '2026-11-26 14:15:00' },
-  { id: 3, orderNo: 'TB20261125102003', buyer: '陈思远', seller: '学长清仓', title: '线性代数（第五版）', amount: 10.0, status: 'WAIT_VERIFY', point: '图书馆西门自提点', createdAt: '2026-11-25 10:20:00' },
-  { id: 4, orderNo: 'TB20261124183004', buyer: '小黄同学', seller: '班委小张', title: '数据结构（C语言版）', amount: 20.0, status: 'VERIFIED', point: '三食堂东门自提点', createdAt: '2026-11-24 18:30:00' },
-  { id: 5, orderNo: 'TB20261123110005', buyer: '赵一鸣', seller: '学长清仓', title: '数据库系统概论（第5版）', amount: 14.0, status: 'SETTLED', point: '图书馆西门自提点', createdAt: '2026-11-23 11:00:00' },
-  { id: 6, orderNo: 'TB20261122140006', buyer: '李小雨', seller: '小黄同学', title: '线性代数（第五版）', amount: 10.0, status: 'SETTLED', point: '图书馆西门自提点', createdAt: '2026-11-22 14:00:00' },
-  { id: 7, orderNo: 'TB20261121101507', buyer: '小黄同学', seller: '陈思远', title: '大学英语 综合教程 2（第3版）', amount: 49.0, status: 'REFUNDED', point: '三食堂东门自提点', createdAt: '2026-11-21 10:15:00' },
-  { id: 8, orderNo: 'TB20261120160008', buyer: '王浩然', seller: '学长清仓', title: '线性代数（第五版）', amount: 32.0, status: 'CLOSED', point: '图书馆西门自提点', createdAt: '2026-11-20 16:00:00' },
-  { id: 9, orderNo: 'TB20261119120009', buyer: '班委小张', seller: '小黄同学', title: '概率论与数理统计（第四版）', amount: 9.9, status: 'VERIFIED', point: '三食堂东门自提点', createdAt: '2026-11-19 12:00:00' }
+  { id: 1, orderNo: 'TB20261127103001', buyerId: 2, buyer: '小黄同学', sellerId: 3, seller: '学长清仓', title: '高等数学（第七版）上册', amount: 15.0, status: 'PENDING_PAY', meetPlace: '图书馆西门自提点', meetTime: '2026-11-27 15:00:00', signPhotoUrl: '', completedAt: '', createdAt: '2026-11-27 10:30:00' },
+  { id: 2, orderNo: 'TB20261126141502', buyerId: 6, buyer: '李小雨', sellerId: 5, seller: '班委小张', title: '大学英语 综合教程 2（第3版）', amount: 12.0, status: 'WAIT_VERIFY', meetPlace: '三食堂东门自提点', meetTime: '2026-11-26 18:00:00', signPhotoUrl: '', completedAt: '', createdAt: '2026-11-26 14:15:00' },
+  { id: 3, orderNo: 'TB20261125102003', buyerId: 8, buyer: '陈思远', sellerId: 3, seller: '学长清仓', title: '线性代数（第五版）', amount: 10.0, status: 'WAIT_VERIFY', meetPlace: '图书馆西门自提点', meetTime: '2026-11-25 16:30:00', signPhotoUrl: '', completedAt: '', createdAt: '2026-11-25 10:20:00' },
+  { id: 4, orderNo: 'TB20261124183004', buyerId: 2, buyer: '小黄同学', sellerId: 5, seller: '班委小张', title: '数据结构（C语言版）', amount: 20.0, status: 'COMPLETED', meetPlace: '三食堂东门自提点', meetTime: '2026-11-24 20:00:00', signPhotoUrl: cover('签收单', 4), completedAt: '2026-11-24 20:10:00', createdAt: '2026-11-24 18:30:00' },
+  { id: 5, orderNo: 'TB20261123110005', buyerId: 9, buyer: '赵一鸣', sellerId: 3, seller: '学长清仓', title: '数据库系统概论（第5版）', amount: 14.0, status: 'COMPLETED', meetPlace: '图书馆西门自提点', meetTime: '2026-11-23 13:00:00', signPhotoUrl: cover('签收单', 5), completedAt: '2026-11-23 13:40:00', createdAt: '2026-11-23 11:00:00' },
+  { id: 6, orderNo: 'TB20261122140006', buyerId: 6, buyer: '李小雨', sellerId: 2, seller: '小黄同学', title: '线性代数（第五版）', amount: 10.0, status: 'COMPLETED', meetPlace: '图书馆西门自提点', meetTime: '2026-11-22 16:00:00', signPhotoUrl: '', completedAt: '2026-11-22 16:20:00', createdAt: '2026-11-22 14:00:00' },
+  { id: 7, orderNo: 'TB20261121101507', buyerId: 2, buyer: '小黄同学', sellerId: 8, seller: '陈思远', title: '大学英语 综合教程 2（第3版）', amount: 49.0, status: 'REFUNDED', meetPlace: '三食堂东门自提点', meetTime: '2026-11-21 16:00:00', signPhotoUrl: '', completedAt: '', refundReason: '收到书籍缺页，双方协商后平台退款', createdAt: '2026-11-21 10:15:00' },
+  { id: 8, orderNo: 'TB20261120160008', buyerId: 7, buyer: '王浩然', sellerId: 3, seller: '学长清仓', title: '线性代数（第五版）', amount: 32.0, status: 'CLOSED', meetPlace: '图书馆西门自提点', meetTime: '2026-11-20 18:00:00', signPhotoUrl: '', completedAt: '', createdAt: '2026-11-20 16:00:00' },
+  { id: 9, orderNo: 'TB20261119120009', buyerId: 8, buyer: '陈思远', sellerId: 2, seller: '小黄同学', title: '概率论与数理统计（第四版）', amount: 9.9, status: 'ARBITRATING', meetPlace: '三食堂东门自提点', meetTime: '2026-11-19 17:30:00', signPhotoUrl: '', completedAt: '', refundReason: '书页有大量水渍，与描述不符，卖家拒绝退货', createdAt: '2026-11-19 12:00:00' },
+  { id: 10, orderNo: 'TB20261118092010', buyerId: 7, buyer: '王浩然', sellerId: 9, seller: '赵一鸣', title: '大学物理学（第五版）上册', amount: 13.0, status: 'REFUNDING', meetPlace: '图书馆西门自提点', meetTime: '2026-11-18 15:00:00', signPhotoUrl: '', completedAt: '', refundReason: '临时不需要了，申请退款', createdAt: '2026-11-18 09:20:00' },
+  { id: 11, orderNo: 'TB20261117164011', buyerId: 9, buyer: '赵一鸣', sellerId: 8, seller: '陈思远', title: '计算机网络（第7版）', amount: 18.0, status: 'ARBITRATING', meetPlace: '三食堂东门自提点', meetTime: '2026-11-17 19:00:00', signPhotoUrl: '', completedAt: '', refundReason: '封面与描述不符，卖家拒绝退款', createdAt: '2026-11-17 16:40:00' },
+  { id: 12, orderNo: 'TB20261116110512', buyerId: 6, buyer: '李小雨', sellerId: 9, seller: '赵一鸣', title: '马克思主义基本原理（2023年版）', amount: 8.0, status: 'REFUND_AGREED', meetPlace: '图书馆西门自提点', meetTime: '2026-11-16 14:00:00', signPhotoUrl: '', completedAt: '', refundReason: '卖家发错版本', createdAt: '2026-11-16 11:05:00' },
+  { id: 13, orderNo: 'TB20261115153013', buyerId: 5, buyer: '班委小张', sellerId: 6, seller: '李小雨', title: '大学英语 综合教程 2（第3版）', amount: 12.0, status: 'REFUNDED', meetPlace: '三食堂东门自提点', meetTime: '2026-11-15 18:00:00', signPhotoUrl: '', completedAt: '', refundReason: '卖家未按约定时间面交', createdAt: '2026-11-15 15:30:00' }
+]
+
+// 退款单：status -> PENDING / AGREED / REJECTED / ARBITRATING / ARBITRATED
+const refunds = [
+  { id: 1, orderId: 9, applicantId: 8, reason: '书页有大量水渍，与描述不符，卖家拒绝退货', evidenceUrl: cover('水渍', 5), amount: 9.9, status: 'ARBITRATING', platformVerdict: '', platformRemark: '', createdAt: '2026-11-19 18:20:00' },
+  { id: 2, orderId: 10, applicantId: 7, reason: '临时不需要了，申请退款', evidenceUrl: cover('退款', 2), amount: 13.0, status: 'PENDING', platformVerdict: '', platformRemark: '', createdAt: '2026-11-18 12:00:00' },
+  { id: 3, orderId: 11, applicantId: 9, reason: '封面与描述不符，卖家拒绝退款', evidenceUrl: cover('封面', 1), amount: 18.0, status: 'ARBITRATING', platformVerdict: '', platformRemark: '', createdAt: '2026-11-17 20:10:00' },
+  { id: 4, orderId: 12, applicantId: 6, reason: '卖家发错版本', evidenceUrl: '', amount: 8.0, status: 'AGREED', platformVerdict: '', platformRemark: '', createdAt: '2026-11-16 14:00:00' },
+  { id: 5, orderId: 13, applicantId: 5, reason: '卖家未按约定时间面交', evidenceUrl: cover('面交', 3), amount: 12.0, status: 'ARBITRATED', platformVerdict: 'SELLER_FAULT', platformRemark: '卖家多次爽约，支持买家退款', decidedAt: '2026-11-16 10:00:00', refundedAt: '2026-11-16 10:05:00', createdAt: '2026-11-15 18:00:00' },
+  { id: 6, orderId: 7, applicantId: 2, reason: '收到书籍缺页', evidenceUrl: cover('缺页', 4), amount: 49.0, status: 'ARBITRATED', platformVerdict: 'REFUNDED', platformRemark: '双方协商一致，已退款', decidedAt: '2026-11-22 09:30:00', refundedAt: '2026-11-22 09:35:00', createdAt: '2026-11-21 13:20:00' }
 ]
 
 const orders = rawOrders.map((o) => ({ ...o, timeline: timelineOf(o.createdAt, o.status) }))
+
+const merchants = [
+  { id: 1, userId: 3, shopName: '学长清仓书屋', licenseUrl: license('学长清仓', 0), contact: '13800000002', status: 'PENDING', rejectReason: '', approvedBy: null, approvedAt: null, listingCount: 0, createdAt: '2026-11-27 09:12:00' },
+  { id: 2, userId: 9, shopName: '一鸣二手书店', licenseUrl: license('赵一鸣', 1), contact: '13800000008', status: 'PENDING', rejectReason: '', approvedBy: null, approvedAt: null, listingCount: 0, createdAt: '2026-11-26 20:30:00' },
+  { id: 3, userId: 8, shopName: '思远旧书铺', licenseUrl: license('陈思远', 2), contact: '13800000007', status: 'PENDING', rejectReason: '', approvedBy: null, approvedAt: null, listingCount: 0, createdAt: '2026-11-26 10:05:00' },
+  { id: 4, userId: 10, shopName: '图书馆图书角', licenseUrl: license('图书角', 3), contact: '13800000009', status: 'APPROVED', rejectReason: '', approvedBy: 1, approvedAt: '2026-10-02 09:00:00', listingCount: 126, createdAt: '2026-10-01 08:30:00' },
+  { id: 5, userId: 5, shopName: '班委教材代购', licenseUrl: license('班委小张', 4), contact: '13800000004', status: 'APPROVED', rejectReason: '', approvedBy: 1, approvedAt: '2026-09-08 10:00:00', listingCount: 48, createdAt: '2026-09-07 14:00:00' },
+  { id: 6, userId: 6, shopName: '小雨书屋', licenseUrl: license('李小雨', 5), contact: '13800000005', status: 'REJECTED', rejectReason: '营业执照照片模糊，店铺名称与证件不一致', approvedBy: 1, approvedAt: '2026-11-20 11:00:00', listingCount: 0, createdAt: '2026-11-19 16:20:00' },
+  { id: 7, userId: 7, shopName: '浩然书摊', licenseUrl: license('王浩然', 6), contact: '13800000006', status: 'FROZEN', rejectReason: '多次发布违规教材，暂停营业', approvedBy: 1, approvedAt: '2026-10-19 09:00:00', listingCount: 12, createdAt: '2026-10-18 14:40:00' }
+]
 
 const users = [
   { id: 1, nickname: '管理员', studentNo: '—', college: '信息中心', creditScore: 100, role: 'ADMIN', verifyState: 'VERIFIED', status: 'NORMAL', phone: '13800000000', createdAt: '2026-09-01 08:00:00' },
@@ -144,6 +173,23 @@ const groupBuys = [
   { id: 7, title: '概率论第四版 · 数学学院', leader: '陈思远', targetCount: 45, currentCount: 41, unitPrice: 9.9, deadline: '2026-12-12 23:59:59', status: 'OPEN', inviteCode: 'PROB4TH' },
   { id: 8, title: '大学物理上册 · 机械 2303', leader: '赵一鸣', targetCount: 38, currentCount: 38, unitPrice: 13.0, deadline: '2026-11-28 23:59:59', status: 'DONE', inviteCode: 'PHY2303' }
 ]
+
+function refundOfOrder(order) {
+  if (!order) return null
+  return refunds.find((r) => r.orderId === order.id) || null
+}
+
+// 订单列表/详情统一带出退款信息，供纠纷仲裁页和订单抽屉使用
+function orderView(order) {
+  const refund = refundOfOrder(order)
+  return {
+    ...order,
+    refund: refund || null,
+    refundId: refund ? refund.id : null,
+    refundStatus: refund ? refund.status : '',
+    refundReason: order.refundReason || (refund ? refund.reason : '')
+  }
+}
 
 function ok(data) {
   return { code: 0, message: 'ok', data }
@@ -283,13 +329,80 @@ function route(method, config) {
     return ok({ id: item.id, status: item.status })
   }
 
+  if (method === 'GET' && url === '/v1/admin/merchants') {
+    const status = String(params.status || '').toUpperCase()
+    let list = merchants.slice().sort((a, b) => b.id - a.id)
+    if (status) {
+      list = list.filter((m) => m.status === status)
+    }
+    // 后端返回全量数组，不分页
+    return ok(list)
+  }
+
+  const merchantReviewMatch = url.match(/^\/v1\/admin\/merchants\/(\d+)\/review$/)
+  if (method === 'POST' && merchantReviewMatch) {
+    const item = merchants.find((m) => m.id === Number(merchantReviewMatch[1]))
+    if (!item) return fail('商户申请不存在')
+    if (item.status !== 'PENDING') return fail('该商户不在待审核状态')
+    const approved = body.approved === true || body.approved === 'true'
+    if (!approved && !String(body.reason || '').trim()) return fail('请填写驳回理由')
+    item.status = approved ? 'APPROVED' : 'REJECTED'
+    item.approvedBy = ADMIN.id
+    item.approvedAt = dayjs().format('YYYY-MM-DD HH:mm:ss')
+    item.rejectReason = approved ? '' : String(body.reason || '').trim()
+    const user = users.find((u) => u.id === item.userId)
+    if (approved && user) {
+      user.role = 'MERCHANT'
+    }
+    return ok(item)
+  }
+
   if (method === 'GET' && url === '/v1/admin/orders') {
     const status = params.status
     let list = orders.slice()
     if (status) {
       list = list.filter((o) => o.status === status)
     }
-    return ok(paginate(list, params.page, params.size))
+    return ok(paginate(list.map(orderView), params.page, params.size))
+  }
+
+  const orderDetailMatch = url.match(/^\/v1\/orders\/([^/]+)$/)
+  if (method === 'GET' && orderDetailMatch) {
+    const orderNo = decodeURIComponent(orderDetailMatch[1])
+    const order = orders.find((o) => o.orderNo === orderNo)
+    if (!order) return fail('订单不存在')
+    return ok(orderView(order))
+  }
+
+  const judgeMatch = url.match(/^\/v1\/orders\/refunds\/(\d+)\/judge$/)
+  if (method === 'POST' && judgeMatch) {
+    const refund = refunds.find((r) => r.id === Number(judgeMatch[1]))
+    if (!refund) return fail('退款单不存在')
+    if (refund.status !== 'ARBITRATING') return fail(`该退货不在仲裁中：${refund.status}`)
+    const buyerWin = body.buyerWin === true || body.buyerWin === 'true'
+    const note = String(body.note || '').trim()
+    if (!note) return fail('请填写判定说明')
+    const now = dayjs().format('YYYY-MM-DD HH:mm:ss')
+    refund.status = 'ARBITRATED'
+    refund.platformVerdict = buyerWin ? 'SELLER_FAULT' : 'PLATFORM_OK'
+    refund.platformRemark = note
+    refund.decidedBy = ADMIN.id
+    refund.decidedAt = now
+    const order = orders.find((o) => o.id === refund.orderId)
+    if (!order) return fail('退款单关联订单不存在')
+    if (buyerWin) {
+      refund.refundedAt = now
+      order.status = 'REFUNDED'
+      order.refundReason = refund.reason
+      order.completedAt = ''
+      const listing = listings.find((l) => l.title === order.title && l.status === 'SOLD')
+      if (listing) listing.status = 'ON_SALE'
+    } else {
+      order.status = 'COMPLETED'
+      order.completedAt = now
+    }
+    order.timeline = timelineOf(order.createdAt, order.status)
+    return ok({ refund, order: orderView(order) })
   }
 
   if (method === 'GET' && url === '/v1/admin/users') {

@@ -4,10 +4,25 @@ import request from './request'
 export const authApi = {
   register: (data) => request.post('/v1/auth/register', data),
   login: (data) => request.post('/v1/auth/login', data), // { account, password }
+  smsCode: (data) => request.post('/v1/auth/sms-code', data), // { phone }
+  smsLogin: (data) => request.post('/v1/auth/sms-login', data), // { phone, code }
   wechat: (code) => request.post('/v1/auth/wechat', { code }),
   me: () => request.get('/v1/auth/me'),
   updateProfile: (data) => request.put('/v1/auth/profile', data),
   verifyStudent: (data) => request.post('/v1/auth/verify-student', data) // { studentNo, realName }
+}
+
+/** 实名 / 学生 / 人脸认证 */
+export const verifyApi = {
+  status: () => request.get('/v1/verify/status'),
+  idCard: (data) => request.post('/v1/verify/id-card', data), // { realName, idNo, frontUrl, backUrl }
+  student: (data) => request.post('/v1/verify/student', data), // { schoolName, studentNo, coverUrl, infoUrl }
+  face: (data) => request.post('/v1/verify/face', data) // { imageUrl }
+}
+
+/** ISBN 查询 */
+export const isbnApi = {
+  lookup: (isbn) => request.get(`/v1/isbn/${encodeURIComponent(isbn)}`)
 }
 
 /** 课程与教材 */
@@ -31,20 +46,46 @@ export const listingApi = {
   offline: (id) => request.post(`/v1/listings/${id}/offline`),
   favorite: (id) => request.post(`/v1/listings/${id}/favorite`),
   favorites: () => request.get('/v1/favorites'),
-  track: (data) => request.post('/v1/track', data)
+  track: (data) => request.post('/v1/track', data),
+  photos: (id) => request.get(`/v1/listings/${id}/photos`),
+  savePhotos: (id, photos) => request.post(`/v1/listings/${id}/photos`, { photos }) // [{ type, url }]
 }
 
-/** 订单 */
+/** 订单（PENDING_PAY → WAIT_VERIFY → COMPLETED，另有退款/介入/关闭） */
 export const orderApi = {
   create: (data) => request.post('/v1/orders', data), // { listingId, pointId, requestId }
   list: (params) => request.get('/v1/orders', { params }), // { role: buyer|seller, status, page, size }
   detail: (orderNo) => request.get(`/v1/orders/${orderNo}`),
   pay: (orderNo, channel = 'MOCK') => request.post(`/v1/orders/${orderNo}/pay`, { channel }),
-  waitVerify: (orderNo) => request.post(`/v1/orders/${orderNo}/wait-verify`),
   cancel: (orderNo) => request.post(`/v1/orders/${orderNo}/cancel`),
-  refund: (orderNo, reason) => request.post(`/v1/orders/${orderNo}/refund`, { reason }),
   verifyCode: (orderNo) => request.get(`/v1/orders/${orderNo}/verify-code`),
-  verify: (data) => request.post('/v1/orders/verify', data) // { orderNo, code, method }
+  verify: (orderNo, data) => request.post(`/v1/orders/${orderNo}/verify`, data), // 卖家 { code, signPhotoUrl }
+  meets: (orderNo) => request.get(`/v1/orders/${orderNo}/meets`),
+  createMeet: (orderNo, data) => request.post(`/v1/orders/${orderNo}/meets`, data), // { type, place, time }
+  confirmMeet: (meetId, data) => request.post(`/v1/orders/meets/${meetId}/confirm`, data), // { agreed, note }
+  refund: (orderNo, data) => request.post(`/v1/orders/${orderNo}/refund`, data), // { reason, photoUrl }
+  agreeRefund: (refundId) => request.post(`/v1/orders/refunds/${refundId}/agree`),
+  rejectRefund: (refundId, data) => request.post(`/v1/orders/refunds/${refundId}/reject`, data), // { reason }
+  finishRefund: (refundId) => request.post(`/v1/orders/refunds/${refundId}/finish`),
+  arbitrateRefund: (refundId, data) => request.post(`/v1/orders/refunds/${refundId}/arbitrate`, data), // { note }
+  reportNoShow: (orderNo, data) => request.post(`/v1/orders/${orderNo}/no-show`, data) // { note }
+}
+
+/** 私信 */
+export const conversationApi = {
+  create: (listingId) => request.post('/v1/conversations', { listingId }),
+  list: (params) => request.get('/v1/conversations', { params }),
+  messages: (id, afterId = 0) => request.get(`/v1/conversations/${id}/messages`, { params: { afterId } }),
+  send: (id, data) => request.post(`/v1/conversations/${id}/messages`, data) // { type, content, extra }
+}
+
+/** 商户端 */
+export const merchantApi = {
+  apply: (data) => request.post('/v1/merchant/apply', data), // { shopName, licenseUrl, contact }
+  my: () => request.get('/v1/merchant/my'),
+  stats: () => request.get('/v1/merchant/stats'),
+  batch: (listings) => request.post('/v1/merchant/listings/batch', { listings }),
+  offline: (listingIds) => request.post('/v1/merchant/listings/offline', { listingIds })
 }
 
 /** 评价与信用 */

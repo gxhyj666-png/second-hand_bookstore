@@ -54,6 +54,18 @@ const routes = [
         name: 'GroupBuy',
         component: () => import('@/views/groupbuy/index.vue'),
         meta: { title: '班级接龙', icon: 'Share' }
+      },
+      {
+        path: 'merchants',
+        name: 'Merchant',
+        component: () => import('@/views/merchant/Index.vue'),
+        meta: { title: '商户审核', icon: 'Shop', group: '平台管理' }
+      },
+      {
+        path: 'refunds',
+        name: 'Refund',
+        component: () => import('@/views/refund/Index.vue'),
+        meta: { title: '纠纷仲裁', icon: 'Warning', group: '平台管理' }
       }
     ]
   },

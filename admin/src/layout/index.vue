@@ -18,10 +18,22 @@
         text-color="#b9c3d6"
         active-text-color="#ffffff"
       >
-        <el-menu-item v-for="item in menus" :key="item.path" :index="item.path">
-          <el-icon><component :is="item.icon" /></el-icon>
-          <template #title>{{ item.title }}</template>
-        </el-menu-item>
+        <template v-for="item in menus" :key="item.path">
+          <el-sub-menu v-if="item.children && item.children.length" :index="item.path">
+            <template #title>
+              <el-icon><component :is="item.icon" /></el-icon>
+              <span>{{ item.title }}</span>
+            </template>
+            <el-menu-item v-for="child in item.children" :key="child.path" :index="child.path">
+              <el-icon><component :is="child.icon" /></el-icon>
+              <template #title>{{ child.title }}</template>
+            </el-menu-item>
+          </el-sub-menu>
+          <el-menu-item v-else :index="item.path">
+            <el-icon><component :is="item.icon" /></el-icon>
+            <template #title>{{ item.title }}</template>
+          </el-menu-item>
+        </template>
       </el-menu>
       <div v-show="!collapsed" class="aside-footer">v1.0 · 毕业设计演示</div>
     </el-aside>
@@ -82,7 +94,16 @@ const menus = [
   { path: '/order', title: '订单管理', icon: 'Tickets' },
   { path: '/user', title: '用户管理', icon: 'User' },
   { path: '/ticket', title: '纠纷工单', icon: 'Service' },
-  { path: '/groupbuy', title: '班级接龙', icon: 'Share' }
+  { path: '/groupbuy', title: '班级接龙', icon: 'Share' },
+  {
+    path: '/platform',
+    title: '平台管理',
+    icon: 'Setting',
+    children: [
+      { path: '/merchants', title: '商户审核', icon: 'Shop' },
+      { path: '/refunds', title: '纠纷仲裁', icon: 'Warning' }
+    ]
+  }
 ]
 
 const activeMenu = computed(() => route.path)
