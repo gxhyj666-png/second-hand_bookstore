@@ -2,13 +2,21 @@ services:
   mysql:
     image: mysql:8.0
     container_name: tl-mysql
+    restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: textbook_loop
       TZ: Asia/Shanghai
-    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci
+    # 2C4G 小机器：限制缓冲池并关掉 performance_schema，否则 MySQL 自己就要吃 600 MB+
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_general_ci
+      --innodb-buffer-pool-size=128M
+      --performance-schema=OFF
+      --max-connections=100
+    # 只监听本机，绝不对公网暴露 3306
     ports:
-      - "3306:3306"
+      - "127.0.0.1:3306:3306"
     volumes:
       - mysql-data:/var/lib/mysql
       - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
@@ -17,12 +25,15 @@ services:
       interval: 10s
       timeout: 5s
       retries: 12
+    mem_limit: 512m
 
   redis:
     image: redis:7-alpine
     container_name: tl-redis
+    restart: unless-stopped
+    command: redis-server --maxmemory 128mb --maxmemory-policy allkeys-lru
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     volumes:
       - redis-data:/data
     healthcheck:
@@ -30,11 +41,13 @@ services:
       interval: 10s
       timeout: 3s
       retries: 10
+    mem_limit: 192m
 
   server:
     build:
       context: ./server
     container_name: tl-server
+    restart: unless-stopped
     depends_on:
       mysql:
         condition: service_healthy
@@ -49,17 +62,35 @@ services:
       MYSQL_PASSWORD: root
       REDIS_HOST: redis
       TZ: Asia/Shanghai
+      # 2C4G 上给 JVM 划一条明确的线，避免和 MySQL 抢内存
+      JAVA_TOOL_OPTIONS: "-Xmx512m -Xss256k -XX:MaxMetaspaceSize=192m"
     ports:
       - "8088:8088"
+    mem_limit: 768m
 
+  # 用户端 Web（H5）：平台主入口，80 端口
+  web:
+    build:
+      context: ./web
+    container_name: tl-web
+    restart: unless-stopped
+    depends_on:
+      - server
+    ports:
+      - "80:80"
+    mem_limit: 64m
+
+  # 管理后台：8080 端口
   admin:
     build:
       context: ./admin
     container_name: tl-admin
+    restart: unless-stopped
     depends_on:
       - server
     ports:
       - "8080:80"
+    mem_limit: 64m
 
 volumes:
   mysql-data:

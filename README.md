@@ -1,7 +1,9 @@
 # 同窗书 · 校园教材循环平台
 
-> 基于 Spring Boot 3 + Vue 3 + 微信小程序的校园二手教材循环平台
+> 基于 Spring Boot 3 + Vue 3 的校园二手教材循环平台
 > —— 要解决的一句话问题是：**"老师说的到底是哪一版，我手上这本书有没有人要？"**
+>
+> 形态：**用户端响应式 Web（H5，可封装 APK）** + 管理后台 + 服务端；小程序代码保留作参考实现。
 
 ![status](https://img.shields.io/badge/build-passing-brightgreen)
 ![java](https://img.shields.io/badge/Java-17-blue)
@@ -18,9 +20,10 @@
 
 | 端 | 使用者 | 目录 | 技术 |
 | --- | --- | --- | --- |
-| 小程序 | 学生（买家/卖家/团长） | `miniapp/` | 原生微信小程序（WXML/WXSS/JS） |
+| **用户端 Web（H5）** | 学生（买家/卖家/团长） | `web/` | Vue 3 + Vite + Vant 4，响应式，可封装 APK |
 | 管理后台 | 运营/教务处 | `admin/` | Vue 3 + Vite + Element Plus + ECharts |
 | 服务端 | —— | `server/` | Spring Boot 3.2.5 + MyBatis-Plus + JWT |
+| 小程序（参考） | 学生 | `miniapp/` | 原生微信小程序，保留作探索记录，非主交付 |
 
 ## 八个模块
 
@@ -64,8 +67,9 @@ mvn -DskipTests package && java -jar target/textbook-loop-server-0.1.0.jar
 
 ```bash
 docker compose up -d --build
+# 用户端 http://127.0.0.1/          （web，80）
+# 管理后台 http://127.0.0.1:8080   （admin，8080）
 # 后端 http://127.0.0.1:8088
-# 后台 http://127.0.0.1:8080
 ```
 
 `db/schema.sql` 会被 MySQL 容器自动执行；手工初始化：
@@ -77,11 +81,14 @@ mysql -uroot -p < db/schema.sql
 ### 前端
 
 ```bash
+# 用户端 Web（平台主入口）
+cd web && pnpm install && pnpm dev       # http://localhost:5174，/api 代理到 8088
+
 # 管理后台
 cd admin && pnpm install && pnpm dev     # http://localhost:5173，默认 mock 数据
 # 接真后端：admin/.env 里把 VITE_USE_MOCK 设为 false
 
-# 小程序
+# 小程序（参考实现，非主交付）
 # 微信开发者工具导入 miniapp/，详情里勾选"不校验合法域名"
 # miniapp/utils/config.js 的 USE_MOCK = true 时不依赖后端即可点通全流程
 ```
@@ -131,8 +138,9 @@ second-hand_bookstore/
 │       ├── security/       # JWT、登录上下文、拦截器
 │       ├── bootstrap/      # 首次启动灌示例数据
 │       └── common/         # 统一响应体、分页、异常处理
-├── admin/                  # Vue 3 管理后台
-├── miniapp/                # 微信小程序
+├── admin/                  # Vue 3 管理后台（Element Plus）
+├── web/                    # Vue 3 用户端 Web / H5（Vant，可封装 APK）
+├── miniapp/                # 微信小程序（参考实现，非主交付）
 ├── tools/                  # 冒烟测试、H2 DDL 生成、小程序结构自检
 └── docker-compose.yml
 ```
@@ -162,11 +170,14 @@ second-hand_bookstore/
 - **为什么资金是 FROZEN 而不是直接打款？** 平台不碰资金池：下单冻结、核销后结算给卖家，
   退款时释放，符合"担保交易"的口径。
 
+- **为什么先做响应式 Web 而不是继续做小程序？** 小程序要 AppID、真机预览与审核，验证成本高；响应式 Web 一套代码同时覆盖 PC 与手机，答辩演示只需要一个浏览器。将来要 APK 时用 Capacitor 套壳（`web/capacitor.config.ts` 已预留），改的只有构建配置，页面代码不动；要小程序时也能复用同一套 HTTP 接口重做 UI。
+
 ## 已知限制
 
 - 微信支付、ISBN OCR、订阅消息预留了接口位，当前用 mock/占位实现（答辩够用，上线需补齐资质与配置）。
 - 推荐是规则召回（同课程 + 收藏共现），不是模型排序；数据量上来后可替换为 ItemCF。
 - 管理后台默认走 mock，接真后端需改 `admin/.env`。
+- 用户端 Web 的图片只接受 URL（后端不落盘），支付为 mock；打包 APK 时须把 `VITE_API_BASE` 指向公网后端并配 HTTPS。
 
 ## License
 
