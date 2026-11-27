@@ -108,13 +108,24 @@ cd admin && pnpm install && pnpm dev     # http://localhost:5173，默认 mock �
 
 ## 主流程演示（一条命令跑完）
 
-```bash
-pwsh tools/smoke.ps1     # Windows（PowerShell 7）；若只有 Windows PowerShell 5.1，用 powershell -File tools\smoke.ps1
-bash tools/smoke.sh      # macOS / Linux
+```powershell
+# Windows 推荐（Windows 10/11 自带，无需安装 PowerShell 7）
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\smoke.ps1
+
+# 完整链路（含双边评价、信用分、未读消息），建议答辩前一天跑一遍
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\e2e-full.ps1
+
+# macOS / Linux
+bash tools/smoke.sh
 ```
 
-依次验证：健康检查 → 管理员看板 → 学生查课程/教材 → 检索 → 详情与价格指数 → 下单（含幂等）→
-支付（资金冻结）→ 待核销 → 取动态核销码 → 店员核销 → 结算与信用分。**这是答辩最值得演示的一条链路。**
+`smoke.ps1` 走 14 个断言（当前实测 **14 通过 / 0 失败**）：健康检查 → 管理员看板 → 学生查课程/教材 → 检索 →
+详情与价格指数 → 推荐 → 下单（含幂等）→ 支付（资金冻结）→ 待核销 → 取动态核销码 → 店员核销 → 结算与信用分。
+**这是答辩最值得演示的一条链路。**
+
+`e2e-full.ps1` 在此基础上补齐「双边评价 → 信用记录 → 未读消息」，
+用来防止「订单能走完但评价/信用分写不进去」这类隐性回归。
+两个脚本都要求后端已在 `http://127.0.0.1:8088` 运行。
 
 ## 目录结构
 

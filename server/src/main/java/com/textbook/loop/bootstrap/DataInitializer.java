@@ -101,6 +101,15 @@ public class DataInitializer implements CommandLineRunner {
                 new BigDecimal("28.00"), "NEW", "买重了，全新未拆封，包装塑封完好。", "梅园 3 栋", 1);
         listing(buyerId, probBook, mathCourse, "概率论与数理统计 第五版 有笔记", new BigDecimal("12.00"),
                 new BigDecimal("36.50"), "FAIR", "全书有较密课堂笔记，适合直接拿来复习。", "梅园 3 栋", 5);
+        // 多卖家、多课程的库存，保证演示账号（同时是卖家）买走一两本后仍有他人商品可检索、可推荐
+        listing(leaderId, mathBook, mathCourse, "高等数学（第七版）上册 同济 全新塑封", new BigDecimal("22.00"),
+                new BigDecimal("49.80"), "NEW", "买重复了，塑封都没拆，可当面验货。", "梅园 5 栋", 2);
+        listing(leaderId, pythonBook, dsCourse, "Python 编程：从入门到实践 第三版", new BigDecimal("28.00"),
+                new BigDecimal("79.80"), "GOOD", "书页有少量铅笔标注，配套代码已跑通。", "梅园 5 栋", 3);
+        listing(sellerId, englishGrammar, englishCourse, "大学英语语法教程 第三版", new BigDecimal("9.00"),
+                new BigDecimal("32.00"), "GOOD", "做过前四单元练习，其余空白，性价比高。", "竹园 6 栋", 4);
+        listing(sellerId, linearBook, linearCourse, "线性代数（第六版）同济 带习题册", new BigDecimal("10.00"),
+                new BigDecimal("28.00"), "LIKE_NEW", "习题册只写了两页，书本身很新。", "竹园 6 栋", 5);
 
         jdbc.update("insert into biz_group_buy (course_id, textbook_id, leader_id, title, target_count, unit_price, "
                         + "invite_code, current_count, deadline, status, commission_rate) values (?,?,?,?,?,?,?,?,?,?,?)",

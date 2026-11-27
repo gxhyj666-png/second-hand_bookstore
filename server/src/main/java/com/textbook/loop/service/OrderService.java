@@ -364,6 +364,10 @@ public class OrderService {
      */
     public java.util.Map<String, Object> verifyCode(String orderNo, Long userId) {
         BizOrders order = detail(orderNo, userId);
+        // 只有已支付/待核销的订单才该出码，否则未付款也能在页面上看到动态码
+        if (!"FROZEN".equals(order.getStatus()) && !"WAIT_VERIFY".equals(order.getStatus())) {
+            throw com.textbook.loop.common.BizException.conflict("订单当前状态不可出示核销码：" + order.getStatus());
+        }
         return java.util.Map.of(
                 "code", verifyCodeUtil.code(orderNo),
                 "remainSeconds", verifyCodeUtil.remainSeconds(),

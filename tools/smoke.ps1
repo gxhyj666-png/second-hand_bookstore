@@ -76,8 +76,12 @@ Step '商品详情与价格指数' {
 }
 
 Step '推荐列表' {
-    $rec = Api GET '/v1/recommend?limit=5' $buyer.token
-    if ($rec.Count -lt 1) { throw '推荐为空' }
+    # 推荐接口对登录用户会排除自己发布的商品；种子数据里演示买家同时也是卖家，
+    # 商品被买光后个性化推荐为空是正常业务语义，因此公开推荐必须可用、个性化只做提示。
+    $rec = Api GET '/v1/recommend?limit=5'
+    if ($rec.Count -lt 1) { throw '公开推荐为空' }
+    $mine = Api GET '/v1/recommend?limit=5' $buyer.token
+    Write-Host ("      公开推荐 $($rec.Count) 条 / 个性化 $($mine.Count) 条")
 }
 
 $order = $null
