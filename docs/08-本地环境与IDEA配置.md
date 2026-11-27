@@ -120,6 +120,37 @@ java -jar server\target\textbook-loop-server-0.1.0.jar --spring.profiles.active=
 | 中文在 PowerShell 里乱码 | 脚本已强制 UTF-8；交互终端先 `chcp 65001`，`.ps1` 文件必须带 BOM（本仓库的脚本都有） |
 | IDEA 打开后没有运行配置 | `.run/` 目录要在仓库根；若被删，重新 `git checkout -- .run` 或手建 Application 配置（Main class `com.textbook.loop.LoopApplication`，程序参数 `--spring.profiles.active=dev`，工作目录仓库根） |
 
+### 6.9 前端页面白屏（Vite 把源码原样返回）
+
+现象：浏览器打开 `http://localhost:5173`（或 5174）一片空白，标题还是 `同窗书 · 管理后台`（没变成「登录 · …」），
+F12 控制台报：
+
+```
+TypeError: Failed to resolve module specifier "vue". Relative references must start with either "/", "./", or "../".
+```
+
+诊断：直接请求被 Vite 处理的模块，看有没有被「转换」：
+
+```powershell
+# 正常（已转换）：main.js 里的 vue 被改写成 /node_modules/.vite/deps/vue.js?v=xxxx
+(Invoke-WebRequest http://localhost:5173/src/main.js -UseBasicParsing).Content
+# 异常（未转换）：还是 import { createApp } from 'vue'，且 /src/App.vue 返回的是原始 SFC 文本
+```
+
+原因：这个 dev server 是在**依赖目录被改过之后**仍在运行的旧进程（`node_modules` 被 `pnpm install` / `npm install`
+替换过，Vite 的插件与 `node_modules/.vite` 预构建缓存都对不上了），于是它把 `.vue`、`main.js` 原样返回，
+浏览器拿到裸模块名 `vue` 直接抛错 → 白屏。
+
+修复（三步，已实测）：
+
+```powershell
+# 1) 在 IDEA 里 Stop 掉该运行配置（或在任务管理器结束 node 进程）
+# 2) 删掉 Vite 的依赖预构建缓存
+Remove-Item admin\node_modules\.vite -Recurse -Force
+# 3) 重新 Run（Web/Admin dev），等控制台出现 VITE ready 后刷新浏览器
+```
+
+> 只要**依赖或 vite.config.js 变了**，dev server 就应该重启一次；热更新只覆盖源码，不覆盖依赖图。
 ## 7. 给别人交付的最小步骤（可直接复制给对方）
 
 ```powershell
