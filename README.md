@@ -120,7 +120,8 @@ second-hand_bookstore/
 │   ├── 01-项目模块介绍.md   # 模块划分 / 功能点 / 技术难点
 │   ├── 02-数据库设计.md     # 表结构、字段、索引与设计取舍
 │   ├── 03-问卷设计与统计口径.md
-│   └── 04-调研实施计划.md
+│   ├── 04-调研实施计划.md
+│   └── word/               # 上述四份文档的 Word 版（交作业/答辩直接打印）
 ├── server/                 # Spring Boot 后端
 │   └── src/main/java/com/textbook/loop/
 │       ├── controller/     # REST 控制器
