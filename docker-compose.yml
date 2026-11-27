@@ -27,21 +27,8 @@ services:
       retries: 12
     mem_limit: 512m
 
-  redis:
-    image: redis:7-alpine
-    container_name: tl-redis
-    restart: unless-stopped
-    command: redis-server --maxmemory 128mb --maxmemory-policy allkeys-lru
-    ports:
-      - "127.0.0.1:6379:6379"
-    volumes:
-      - redis-data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 3s
-      retries: 10
-    mem_limit: 192m
+  # 说明：后端目前没有引入 Redis 依赖（application-mysql.yml 里的 spring.data.redis 只是预留配置），
+  # 因此这里不启动 redis 容器，省下约 200 MB 内存给 JVM/MySQL。
 
   server:
     build:
@@ -51,8 +38,6 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
-      redis:
-        condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: mysql
       MYSQL_HOST: mysql
@@ -60,7 +45,6 @@ services:
       MYSQL_DB: textbook_loop
       MYSQL_USER: root
       MYSQL_PASSWORD: root
-      REDIS_HOST: redis
       TZ: Asia/Shanghai
       # 2C4G 上给 JVM 划一条明确的线，避免和 MySQL 抢内存
       JAVA_TOOL_OPTIONS: "-Xmx512m -Xss256k -XX:MaxMetaspaceSize=192m"
@@ -94,4 +78,3 @@ services:
 
 volumes:
   mysql-data:
-  redis-data:

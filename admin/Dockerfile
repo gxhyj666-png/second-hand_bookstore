@@ -1,7 +1,8 @@
 # 管理后台：多阶段构建（Node 构建静态资源 → Nginx 托管）
 FROM node:20-alpine AS build
 WORKDIR /app
-RUN corepack enable
+# 直接装固定版本 pnpm（比 corepack 少一层网络不确定性）
+RUN npm install -g pnpm@11.8.0
 
 # 先只拷贝依赖清单，利用镜像层缓存
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./

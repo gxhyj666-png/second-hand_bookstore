@@ -57,9 +57,12 @@ curl http://127.0.0.1:8088/v1/health
 | 服务 | 限制 | 原因 |
 | --- | --- | --- |
 | mysql | `--innodb-buffer-pool-size=128M --performance-schema=OFF`，`mem_limit 512m` | 默认缓冲池 128 MB 起、performance_schema 另占百兆 |
-| redis | `--maxmemory 128mb`，`mem_limit 192m` | 防止无上限增长 |
 | server | `JAVA_TOOL_OPTIONS=-Xmx512m -Xss256k`，`mem_limit 768m` | 给 JVM 明确上限，避免和 MySQL 抢 |
 | web / admin | `mem_limit 64m` | 纯静态 |
+
+> 后端当前没有引入 Redis 依赖，因此 compose 里不再启动 redis 容器（省约 200 MB 内存）。
+>
+> 华为云 / openEuler 环境请看更具体的 `deploy/huawei-cloud.md`（含无 compose 插件时的 `run-with-docker.sh` 用法与 2 GB 内存方案）。
 
 另外 3306 / 6379 只绑 `127.0.0.1`，公网访问不到。
 
