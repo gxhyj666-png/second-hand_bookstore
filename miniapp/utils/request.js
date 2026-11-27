@@ -8,7 +8,7 @@
  */
 const mock = require('./mock')
 
-const DEFAULT_BASE_URL = 'http://localhost:8080/api'
+const DEFAULT_BASE_URL = 'http://localhost:8088/api'
 const TOKEN_KEY = 'token'
 const USER_KEY = 'userInfo'
 
