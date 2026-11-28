@@ -37,7 +37,7 @@
 2. **实名 + 学生双认证**：实名认证（身份证正反面 + 三方核验）、学生认证（学生证封面 + 信息页）、
    人脸识别留痕；**交易与私信前置校验**，未双认证只能浏览。
 3. **课程—教材知识库**：课程库 + 教材主数据（ISBN-13 维度，一版一条）+ 课程教材映射（REQUIRED/REFERENCE），
-   并支持 **扫码/输入 ISBN 自动带出书名、作者、出版社、版次、参考价**（`/v1/isbn/{isbn}`），从根上解决"第几版"歧义。
+   并支持 **拍照扫码或输入 ISBN 自动带出书名、作者、出版社、版次、参考价**（`POST /v1/isbn/scan` 本地 ZXing 解 EAN-13 + `GET /v1/isbn/{isbn}` 两段式：本地教材库 → 第三方图书库），从根上解决"第几版"歧义。
 4. **商品发布与品相**：选教材/ISBN → 定价 → 五档品相（NEW/LIKE_NEW/GOOD/FAIR/POOR）→ **7 张实拍照片**
    （封面、封底、出版日期页、四页正文，`/v1/listings/{id}/photos`）+ **可选展示视频**，并给出**同教材成交价指数**
    （最低/最高/均价/建议价），让定价有据可依。
@@ -242,7 +242,7 @@ second-hand_bookstore/
   置 `spug` + `app.spug-template-code` 即接 **Spug 推送助手官方短信验证码模板**（一次 `POST /sms/<模板编码>`，
   无需申请短信签名）。真实模式不再回传 `devCode`。身份证核验同样可切真实通道：
   `app.identity-provider=aliyun` + `app.aliyun-market-appcode`（阿里云云市场「身份证二要素」，AppCode 鉴权，
-  默认 mock 只做 GB11643 校验位）。人脸识别、ISBN 查询仍是 mock。
+  默认 mock 只做 GB11643 校验位；实名核验可切阿里云云市场二要素）。ISBN 已双通道：本地 ZXing 识别条码 + 云市场图书库补书名（`app.isbn-provider=mock|market`），人脸识别仍是 mock。
 - 推荐是规则召回（同课程 + 收藏共现），不是模型排序；数据量上来后可替换为 ItemCF。
 - 管理后台已默认直连真后端（`admin/.env` 的 `VITE_USE_MOCK=false`），mock 数据仅保留作离线预览备用。
 - 图片与视频上传落本地 `uploads/`（`app.upload-dir` 可改），生产建议换成对象存储；打包 APK 时须把

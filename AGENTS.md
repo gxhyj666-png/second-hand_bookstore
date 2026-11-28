@@ -84,6 +84,11 @@ python tools/md2docx.py
 - 分页：`{ records, total, page, size }`
 - 认证：`Authorization: Bearer <JWT>`；`AuthInterceptor` **只解析不拒绝**，需要登录的接口由 `UserContext.requireUserId()` 抛 401，游客可读的 GET 用 `currentUserIdOrNull()`
 - 游客可浏览：商品列表/详情、推荐、课程、教材、ISBN、自提点；交易与私信需要**实名 + 学生双认证**
+- 第三方能力都在接口层后面，改 `app.*-provider` / `app.identity-provider` 即可切换：
+  - 短信：`app.sms-provider=mock|spug`（Spug 模板编码放 `application-market-local.yml` 或 `APP_SPUG_TEMPLATE_CODE`）
+  - 实名：`app.identity-provider=mock|aliyun`（阿里云云市场身份证二要素，AppCode 同账号共用）
+  - ISBN：`app.isbn-provider=mock|market`（云市场「ISBN 标准书号查询」）；`POST /v1/isbn/scan` 是本地 ZXing 解码书背 EAN-13，离线可用、不消耗额度
+  - 凭证统一放 gitignored 的 `server/src/main/resources/application-market-local.yml`，**绝不进仓库**
 
 ## 7. 关键设计决策（改之前先看理由）
 
@@ -92,7 +97,7 @@ python tools/md2docx.py
 2. **防超卖**：`UPDATE biz_listing SET status='LOCKED' WHERE id=? AND status='ON_SALE'`，用影响行数判断，不靠先查后改。
 3. **幂等**：`sys_idempotent(request_id, scene)` 唯一键，重复请求返回同一订单（订单 id 存 `result` 字符串列）。
 4. **核销码**：买家侧 6 位随机码 + `verify_expire_at`（默认 15 分钟），过期刷新换码；**由卖家核销**并要求上传签到照。
-5. **第三方能力 provider 化**：`sms/` 包下 `SmsProvider`（mock / spug），`IdentityService`（实名/人脸）、`IsbnService`（ISBN）同理 → 演示走 mock、上线只改配置。
+5. **第三方能力 provider 化**：`sms/SmsProvider`（mock / spug）、`realname/RealNameProvider`（mock / 阿里云云市场二要素）、`isbn/IsbnMetaProvider`（mock / 云市场图书库）；ISBN 条码解码用本地 ZXing（不依赖网络）→ 演示走 mock、上线只改配置。
 6. **双 DDL 不手写第二份**：`schema-h2.sql` 由 `tools/gen-h2-schema.js` 从 `db/schema.sql` 机械生成，改表只改后者再重跑生成器。
 7. **JWT 无状态、不用 Redis**：compose 里没有 redis 容器，别加回来（后端无 redis 依赖）。
 8. **前后端分离**：后端不做服务端渲染；Vite 开发期 `/api` 代理到 8088，生产 nginx 去前缀反代。
