@@ -93,7 +93,14 @@ export const merchantApi = {
   my: () => request.get('/v1/merchant/my'),
   stats: () => request.get('/v1/merchant/stats'),
   batch: (listings) => request.post('/v1/merchant/listings/batch', { listings }),
-  offline: (listingIds) => request.post('/v1/merchant/listings/offline', { listingIds })
+  offline: (listingIds) => request.post('/v1/merchant/listings/offline', { listingIds }),
+  // 商户工作台
+  dashboard: () => request.get('/v1/merchant/dashboard'),
+  listings: (params) => request.get('/v1/merchant/listings', { params }),
+  toggle: (id, online) => request.post(`/v1/merchant/listings/${id}/toggle`, { online }),
+  price: (listingIds, value, mode) => request.post('/v1/merchant/listings/price', { listingIds, value, mode }),
+  orders: (params) => request.get('/v1/merchant/orders', { params }),
+  settlements: (params) => request.get('/v1/merchant/settlements', { params })
 }
 
 /** 评价与信用 */

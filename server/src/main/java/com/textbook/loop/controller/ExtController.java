@@ -154,4 +154,51 @@ public class ExtController {
     public ApiResponse<Map<String, Object>> merchantOffline(@RequestBody OfflineReq req) {
         return ApiResponse.ok(merchantService.batchOffline(UserContext.requireUserId(), req.listingIds()));
     }
+
+    // ---------------- 商户工作台（P3：商品 / 订单 / 数据 / 结算） ----------------
+
+    public record ToggleReq(boolean online) {
+    }
+
+    public record PriceReq(List<Long> listingIds, java.math.BigDecimal value, String mode) {
+    }
+
+    @GetMapping("/merchant/listings")
+    public ApiResponse<?> merchantListings(@RequestParam(required = false) String status,
+                                           @RequestParam(required = false) String keyword,
+                                           @RequestParam(defaultValue = "1") long page,
+                                           @RequestParam(defaultValue = "10") long size) {
+        return ApiResponse.ok(merchantService.listings(UserContext.requireUserId(), status, keyword, page, size));
+    }
+
+    @PostMapping("/merchant/listings/{id}/toggle")
+    public ApiResponse<Map<String, Object>> merchantToggle(@PathVariable Long id,
+                                                          @RequestBody(required = false) ToggleReq req) {
+        boolean online = req != null && req.online();
+        return ApiResponse.ok(merchantService.toggleListing(UserContext.requireUserId(), id, online));
+    }
+
+    @PostMapping("/merchant/listings/price")
+    public ApiResponse<Map<String, Object>> merchantPrice(@RequestBody PriceReq req) {
+        return ApiResponse.ok(merchantService.batchPrice(UserContext.requireUserId(),
+                req.listingIds(), req.value(), req.mode()));
+    }
+
+    @GetMapping("/merchant/orders")
+    public ApiResponse<?> merchantOrders(@RequestParam(required = false) String status,
+                                         @RequestParam(defaultValue = "1") long page,
+                                         @RequestParam(defaultValue = "10") long size) {
+        return ApiResponse.ok(merchantService.orders(UserContext.requireUserId(), status, page, size));
+    }
+
+    @GetMapping("/merchant/dashboard")
+    public ApiResponse<Map<String, Object>> merchantDashboard() {
+        return ApiResponse.ok(merchantService.dashboard(UserContext.requireUserId()));
+    }
+
+    @GetMapping("/merchant/settlements")
+    public ApiResponse<?> merchantSettlements(@RequestParam(defaultValue = "1") long page,
+                                              @RequestParam(defaultValue = "10") long size) {
+        return ApiResponse.ok(merchantService.settlements(UserContext.requireUserId(), page, size));
+    }
 }

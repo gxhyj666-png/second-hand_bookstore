@@ -132,6 +132,9 @@ const MENU = computed(() => {
   if (role === 'MERCHANT' || role === 'ADMIN') {
     list.push({ text: '商户中心', path: '/merchant', icon: 'shop-o' })
   }
+  if (store.user?.merchantId) {
+    list.push({ text: '商户工作台', path: '/merchant/workbench', icon: 'apps-o' })
+  }
   list.push(
     { text: '信用记录', path: '/credit', icon: 'chart-trending-o' },
     { text: '纠纷工单', path: '/tickets', icon: 'service-o' },

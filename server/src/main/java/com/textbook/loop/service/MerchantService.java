@@ -1,22 +1,33 @@
 package com.textbook.loop.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.textbook.loop.common.BizException;
+import com.textbook.loop.common.PageResult;
 import com.textbook.loop.domain.BizListing;
+import com.textbook.loop.domain.BizOrders;
+import com.textbook.loop.domain.BizSettlement;
 import com.textbook.loop.domain.SysMerchant;
 import com.textbook.loop.domain.SysUser;
 import com.textbook.loop.mapper.BizListingMapper;
+import com.textbook.loop.mapper.BizOrdersMapper;
+import com.textbook.loop.mapper.BizSettlementMapper;
 import com.textbook.loop.mapper.SysMerchantMapper;
 import com.textbook.loop.mapper.SysUserMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * 商户端：入驻申请、批量上下架、商户看板。
@@ -28,13 +39,18 @@ public class MerchantService {
     private final SysMerchantMapper merchantMapper;
     private final SysUserMapper userMapper;
     private final BizListingMapper listingMapper;
+    private final BizOrdersMapper ordersMapper;
+    private final BizSettlementMapper settlementMapper;
     private final NoticeService noticeService;
 
     public MerchantService(SysMerchantMapper merchantMapper, SysUserMapper userMapper,
-                           BizListingMapper listingMapper, NoticeService noticeService) {
+                           BizListingMapper listingMapper, BizOrdersMapper ordersMapper,
+                           BizSettlementMapper settlementMapper, NoticeService noticeService) {
         this.merchantMapper = merchantMapper;
         this.userMapper = userMapper;
         this.listingMapper = listingMapper;
+        this.ordersMapper = ordersMapper;
+        this.settlementMapper = settlementMapper;
         this.noticeService = noticeService;
     }
 
@@ -184,6 +200,245 @@ public class MerchantService {
         map.put("total", listingMapper.selectCount(new LambdaQueryWrapper<BizListing>()
                 .eq(BizListing::getMerchantId, m.getId())));
         return map;
+    }
+
+    /** 商户商品分页：status 为空/all 表示全部，keyword 模糊匹配书名。 */
+    public PageResult<Map<String, Object>> listings(Long userId, String status, String keyword,
+                                                    long page, long size) {
+        SysMerchant m = requireApproved(userId);
+        LambdaQueryWrapper<BizListing> q = new LambdaQueryWrapper<BizListing>()
+                .eq(BizListing::getMerchantId, m.getId());
+        if (status != null && !status.isBlank() && !"ALL".equalsIgnoreCase(status)) {
+            q.eq(BizListing::getStatus, status.toUpperCase());
+        }
+        if (keyword != null && !keyword.isBlank()) {
+            q.like(BizListing::getTitle, keyword.trim());
+        }
+        q.orderByDesc(BizListing::getId);
+        Page<BizListing> p = listingMapper.selectPage(new Page<>(page, size), q);
+        return PageResult.of(p, this::listingView);
+    }
+
+    /** 单条上/下架：只允许自己店铺的商品，且状态必须能迁移。 */
+    @Transactional
+    public Map<String, Object> toggleListing(Long userId, Long listingId, boolean online) {
+        SysMerchant m = requireApproved(userId);
+        BizListing l = listingMapper.selectById(listingId);
+        if (l == null || !m.getId().equals(l.getMerchantId())) {
+            throw BizException.notFound("商品不存在或不属于你的店铺");
+        }
+        String from = online ? "OFFLINE" : "ON_SALE";
+        if (!from.equals(l.getStatus())) {
+            throw BizException.conflict(online ? "只有在已下架的商品才能重新上架" : "只有在售商品才能下架");
+        }
+        l.setStatus(online ? "ON_SALE" : "OFFLINE");
+        listingMapper.updateById(l);
+        m.setListingCount((int) countOnSale(m.getId()));
+        merchantMapper.updateById(m);
+        Map<String, Object> map = new HashMap<>();
+        map.put("id", l.getId());
+        map.put("status", l.getStatus());
+        return map;
+    }
+
+    /** 批量改价：mode = SET 直接设价 / DELTA 加减金额 / PERCENT 按百分比（-10 表示降 10%）。 */
+    @Transactional
+    public Map<String, Object> batchPrice(Long userId, List<Long> listingIds, BigDecimal value, String mode) {
+        SysMerchant m = requireApproved(userId);
+        if (listingIds == null || listingIds.isEmpty()) {
+            throw BizException.badRequest("请选择要改价的商品");
+        }
+        if (value == null) {
+            throw BizException.badRequest("请填写价格");
+        }
+        String how = mode == null ? "SET" : mode.toUpperCase();
+        int changed = 0;
+        for (Long id : listingIds) {
+            BizListing l = listingMapper.selectById(id);
+            if (l == null || !m.getId().equals(l.getMerchantId()) || "SOLD".equals(l.getStatus())) {
+                continue;
+            }
+            BigDecimal next = switch (how) {
+                case "DELTA" -> l.getPrice().add(value);
+                case "PERCENT" -> l.getPrice().multiply(BigDecimal.ONE.add(value.movePointLeft(2)));
+                default -> value;
+            };
+            next = next.setScale(2, RoundingMode.HALF_UP);
+            if (next.compareTo(new BigDecimal("0.01")) < 0) {
+                throw BizException.badRequest("改价后价格不能低于 0.01：" + l.getTitle());
+            }
+            l.setPrice(next);
+            listingMapper.updateById(l);
+            changed++;
+        }
+        Map<String, Object> map = new HashMap<>();
+        map.put("count", changed);
+        return map;
+    }
+
+    /** 商户订单分页：只统计本店铺商品产生的订单。 */
+    public PageResult<Map<String, Object>> orders(Long userId, String status, long page, long size) {
+        SysMerchant m = requireApproved(userId);
+        LambdaQueryWrapper<BizOrders> q = new LambdaQueryWrapper<BizOrders>()
+                .eq(BizOrders::getMerchantId, m.getId());
+        if (status != null && !status.isBlank() && !"ALL".equalsIgnoreCase(status)) {
+            q.eq(BizOrders::getStatus, status.toUpperCase());
+        }
+        q.orderByDesc(BizOrders::getId);
+        Page<BizOrders> p = ordersMapper.selectPage(new Page<>(page, size), q);
+        List<BizOrders> records = p.getRecords();
+        Map<Long, String> buyerNames = nickNames(records.stream().map(BizOrders::getBuyerId)
+                .filter(java.util.Objects::nonNull).collect(Collectors.toSet()));
+        Map<Long, String> titles = listingTitles(records.stream().map(BizOrders::getListingId)
+                .filter(java.util.Objects::nonNull).collect(Collectors.toSet()));
+        return PageResult.of(p, o -> orderView(o, buyerNames, titles));
+    }
+
+    /** 商户工作台：今日成交、待核销、待处理退款、在售/下架库存 + 近 7 日成交。 */
+    public Map<String, Object> dashboard(Long userId) {
+        SysMerchant m = requireApproved(userId);
+        LocalDate today = LocalDate.now();
+        LocalDateTime todayStart = today.atStartOfDay();
+        LocalDateTime weekStart = today.minusDays(6).atStartOfDay();
+        List<BizOrders> recent = ordersMapper.selectList(new LambdaQueryWrapper<BizOrders>()
+                .eq(BizOrders::getMerchantId, m.getId())
+                .ge(BizOrders::getCreatedAt, weekStart));
+        List<Map<String, Object>> series = new ArrayList<>();
+        BigDecimal weekGmv = BigDecimal.ZERO;
+        long weekOrders = 0;
+        for (int i = 6; i >= 0; i--) {
+            LocalDate d = today.minusDays(i);
+            BigDecimal gmv = BigDecimal.ZERO;
+            long orders = 0;
+            long verifies = 0;
+            for (BizOrders o : recent) {
+                if (o.getCreatedAt() == null || !d.equals(o.getCreatedAt().toLocalDate())) {
+                    continue;
+                }
+                orders++;
+                if ("COMPLETED".equals(o.getStatus())) {
+                    gmv = gmv.add(o.getAmount() == null ? BigDecimal.ZERO : o.getAmount());
+                    verifies++;
+                }
+            }
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("date", d.toString().substring(5));
+            row.put("gmv", gmv);
+            row.put("orders", orders);
+            row.put("verifies", verifies);
+            series.add(row);
+            weekGmv = weekGmv.add(gmv);
+            weekOrders += orders;
+        }
+        long todayOrders = recent.stream()
+                .filter(o -> o.getCreatedAt() != null && !o.getCreatedAt().isBefore(todayStart)).count();
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("merchantId", m.getId());
+        map.put("shopName", m.getShopName());
+        map.put("onSale", countOnSale(m.getId()));
+        map.put("offline", countByStatus(m.getId(), "OFFLINE"));
+        map.put("total", listingMapper.selectCount(new LambdaQueryWrapper<BizListing>()
+                .eq(BizListing::getMerchantId, m.getId())));
+        map.put("todayOrders", todayOrders);
+        map.put("weekOrders", weekOrders);
+        map.put("weekGmv", weekGmv);
+        map.put("waitVerify", orderCount(m.getId(), "WAIT_VERIFY"));
+        map.put("refunding", ordersMapper.selectCount(new LambdaQueryWrapper<BizOrders>()
+                .eq(BizOrders::getMerchantId, m.getId())
+                .in(BizOrders::getStatus, "REFUNDING", "REFUND_AGREED", "ARBITRATING")));
+        map.put("pendingPay", orderCount(m.getId(), "PENDING_PAY"));
+        map.put("series", series);
+        return map;
+    }
+
+    /** 结算流水：已完成订单的结算记录（成交金额与平台佣金）。 */
+    public PageResult<Map<String, Object>> settlements(Long userId, long page, long size) {
+        requireApproved(userId);
+        Page<BizSettlement> p = settlementMapper.selectPage(new Page<>(page, size),
+                new LambdaQueryWrapper<BizSettlement>()
+                        .eq(BizSettlement::getSellerId, userId)
+                        .orderByDesc(BizSettlement::getId));
+        return PageResult.of(p, s -> {
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("id", s.getId());
+            row.put("orderNo", s.getOrderNo());
+            row.put("amount", s.getAmount());
+            row.put("commission", s.getCommission());
+            row.put("status", s.getStatus());
+            row.put("settleAt", s.getSettleAt());
+            row.put("createdAt", s.getCreatedAt());
+            return row;
+        });
+    }
+
+    private Map<String, Object> listingView(BizListing l) {
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("id", l.getId());
+        row.put("title", l.getTitle());
+        row.put("price", l.getPrice());
+        row.put("originalPrice", l.getOriginalPrice());
+        row.put("conditionLevel", l.getConditionLevel());
+        row.put("coverUrl", l.getCoverUrl());
+        row.put("status", l.getStatus());
+        row.put("viewCount", l.getViewCount());
+        row.put("favoriteCount", l.getFavoriteCount());
+        row.put("imageCount", l.getImageCount());
+        row.put("dorm", l.getDorm());
+        row.put("publishedAt", l.getPublishedAt());
+        row.put("createdAt", l.getCreatedAt());
+        return row;
+    }
+
+    private Map<String, Object> orderView(BizOrders o, Map<Long, String> buyerNames, Map<Long, String> titles) {
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("orderNo", o.getOrderNo());
+        row.put("listingId", o.getListingId());
+        row.put("listingTitle", titles.getOrDefault(o.getListingId(), ""));
+        row.put("buyerId", o.getBuyerId());
+        row.put("buyerName", buyerNames.getOrDefault(o.getBuyerId(), ""));
+        row.put("amount", o.getAmount());
+        row.put("commission", o.getCommission());
+        row.put("status", o.getStatus());
+        row.put("payChannel", o.getPayChannel());
+        row.put("meetPlace", o.getMeetPlace());
+        row.put("meetTime", o.getMeetTime());
+        row.put("signPhotoUrl", o.getSignPhotoUrl());
+        row.put("paidAt", o.getPaidAt());
+        row.put("verifiedAt", o.getVerifiedAt());
+        row.put("completedAt", o.getCompletedAt());
+        row.put("createdAt", o.getCreatedAt());
+        return row;
+    }
+
+    private Map<Long, String> nickNames(Set<Long> ids) {
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        return userMapper.selectBatchIds(ids).stream()
+                .filter(u -> u.getNickname() != null)
+                .collect(Collectors.toMap(SysUser::getId, SysUser::getNickname, (a, b) -> a));
+    }
+
+    private Map<Long, String> listingTitles(Set<Long> ids) {
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        return listingMapper.selectBatchIds(ids).stream()
+                .collect(Collectors.toMap(BizListing::getId, BizListing::getTitle, (a, b) -> a));
+    }
+
+    private long countByStatus(Long merchantId, String status) {
+        Long n = listingMapper.selectCount(new LambdaQueryWrapper<BizListing>()
+                .eq(BizListing::getMerchantId, merchantId)
+                .eq(BizListing::getStatus, status));
+        return n == null ? 0 : n;
+    }
+
+    private long orderCount(Long merchantId, String status) {
+        Long n = ordersMapper.selectCount(new LambdaQueryWrapper<BizOrders>()
+                .eq(BizOrders::getMerchantId, merchantId)
+                .eq(BizOrders::getStatus, status));
+        return n == null ? 0 : n;
     }
 
     private long countOnSale(Long merchantId) {
