@@ -126,9 +126,12 @@ python tools/md2docx.py
 
 ## 10. 协作规则（给 AI）
 
+- **先推送，再写代码**（硬规则，2026-11-28 起）：每次动手前先 `git status` 与 `git log --oneline origin/main..HEAD`；有未提交改动先提交，有未推送提交先 `git push`，**本地干净了才开始写**。收尾必须"提交 + 推送"成对完成，不留本地领先远端的提交。
+- **严格以任务书为边界**：开发范围以 `docs/11-任务书与选题表对照验证.md` 里那份任务书为准——**11 个功能模块 / 5 类角色（学生·团长·商户·运营·管理员）/ 37 张表**。任务书之外的新模块（支付渠道、社交动态、优惠券、竞价推广位、积分商城之类）**先问再决定**，不许"顺手加功能"。
 - **先读后写**：动任何接口前先看对应 `controller` + `service`，别按记忆猜字段名（实体是生成物，以 `db/schema.sql` 为准）。
 - **改表流程**：`db/schema.sql` → `node tools/gen-entities.js` → `node tools/gen-h2-schema.js` → 删本地 `data/` → 重启。
 - **验证要求**：改后端必须 `.\mvnw.cmd -q -DskipTests compile` 通过；改接口必须跑 `smoke.ps1` / `e2e-trade.ps1`；改前端必须 `pnpm build` 通过。**不许说"应该能跑"**。
 - **提交**：一个主题一次提交，中文说明写清"做了什么/为什么"；`git add` 具体路径，别 `git add -A` 扫进 `.vite`、`dist`、`data`。
 - **凭证**：Spug 模板编码、JWT 密钥、数据库密码一律不进仓库（`**/application-*-local.yml` 已忽略）。
 - **不确定就问**：涉及产品口径（要不要小程序、要不要接支付）先问，不擅自扩展范围。
+- **网络事实**：本机 GitHub **HTTPS 出网被拦**（`Failed to connect to github.com:443`），remote 已改为 SSH `git@github.com:gxhyj666-png/second-hand_bookstore.git`（复用 `~/.ssh/id_ed25519`，`ssh -T git@github.com` 返回 "Hi gxhyj666-png!" 即通）。push 走 SSH，别改回 HTTPS。
