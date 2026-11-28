@@ -81,7 +81,14 @@ Step '实名/学生认证状态' {
 
 $list = Api 'GET' '/v1/listings?size=30' $null $null
 $pick = $list.records | Where-Object { $_.sellerId -eq $seller.user.id } | Select-Object -First 1
-if (-not $pick) { throw '没有卖家在售商品，先跑 tools\smoke.ps1' }
+if (-not $pick) {
+    # 卖家的种子商品可能已被前面的 smoke 跑成 SOLD，这里现发一件，保证脚本可重复执行
+    Write-Host "     [准备] 卖家在售商品为空，现发布一件用于 E2E" -ForegroundColor DarkGray
+    $pick = Api 'POST' '/v1/listings' $sellerToken @{
+        textbookId = 1; courseId = 1; price = 18.00; condition = 'LIKE_NEW'
+        description = 'E2E 卖家商品'; dorm = '2-101'; images = @()
+    }
+}
 
 # ---- 场景一：退款协商同意 ----
 $order1 = Step '场景一：下单并完成交易' { CompleteOrder $buyerToken $sellerToken $pick.id }

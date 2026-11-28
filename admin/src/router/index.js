@@ -66,6 +66,18 @@ const routes = [
         name: 'Refund',
         component: () => import('@/views/refund/Index.vue'),
         meta: { title: '纠纷仲裁', icon: 'Warning', group: '平台管理' }
+      },
+      {
+        path: 'upgrade-codes',
+        name: 'UpgradeCodes',
+        component: () => import('@/views/upgrade/index.vue'),
+        meta: { title: '进阶码管理', icon: 'Key', group: '平台管理' }
+      },
+      {
+        path: 'operators',
+        name: 'Operators',
+        component: () => import('@/views/operator/index.vue'),
+        meta: { title: '运营人员', icon: 'Avatar', group: '平台管理' }
       }
     ]
   },

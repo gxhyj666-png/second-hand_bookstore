@@ -15,6 +15,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -25,12 +27,13 @@ import java.util.*;
  * 交易主流程（打磨后的三态模型）：
  *
  * <pre>
- *   下单 PENDING_PAY（15 分钟未付自动关闭）
- *     → 支付 WAIT_VERIFY（生成 6 位核销码，15 分钟有效）
+ *   下单 PENDING_PAY（仅维持 5 分钟，超时自动关闭）
+ *     → 支付 WAIT_VERIFY（卖家可生成 6 位核销码，15 分钟有效，且不晚于约定时间后 15 分钟）
  *     → 线下见面，卖家输入核销码 + 上传签到照片 → COMPLETED（商品 SOLD、结算、双方信用 +5）
  *
- *   退货：REFUNDING → 卖家同意 REFUND_AGREED → 买家确认退回 REFUNDED
- *         卖家拒绝 → 买家申请介入 ARBITRATING → 平台判定：强制退款 或 交易维持完成
+ *   取消：待支付买卖双方均可取消；已付款未核销可取消（买家/卖家，责任方扣 3 分）
+ *   退货：REFUNDING（RETURN 退货退款 / REFUND_ONLY 仅退款）→ 卖家同意 → 退款
+ *         卖家拒绝 → 买家申请介入 ARBITRATING → 平台判定：强制退款（卖家 -5）或交易维持（买家 -5）
  *
  *   爽约：约定时间 +30 分钟后可上报，被上报方 -5 信用分。
  * </pre>
@@ -51,6 +54,8 @@ public class OrderService {
     private final BizMeetMapper meetMapper;
     private final BizRefundMapper refundMapper;
     private final BizNoShowMapper noShowMapper;
+    private final BizPromotionMapper promotionMapper;
+    private final BizCommissionMapper commissionMapper;
     private final SysUserMapper userMapper;
     private final BizCreditLogMapper creditLogMapper;
     private final NoticeService noticeService;
@@ -61,6 +66,7 @@ public class OrderService {
                         SysIdempotentMapper idempotentMapper, BizPickupPointMapper pointMapper,
                         BizPickupVerifyMapper verifyMapper, BizSettlementMapper settlementMapper,
                         BizMeetMapper meetMapper, BizRefundMapper refundMapper, BizNoShowMapper noShowMapper,
+                        BizPromotionMapper promotionMapper, BizCommissionMapper commissionMapper,
                         SysUserMapper userMapper, BizCreditLogMapper creditLogMapper,
                         NoticeService noticeService, IdentityService identityService, AppProps props) {
         this.ordersMapper = ordersMapper;
@@ -72,6 +78,8 @@ public class OrderService {
         this.meetMapper = meetMapper;
         this.refundMapper = refundMapper;
         this.noShowMapper = noShowMapper;
+        this.promotionMapper = promotionMapper;
+        this.commissionMapper = commissionMapper;
         this.userMapper = userMapper;
         this.creditLogMapper = creditLogMapper;
         this.noticeService = noticeService;
@@ -176,7 +184,7 @@ public class OrderService {
             throw BizException.conflict("订单当前状态不可支付：" + order.getStatus());
         }
         if (order.getExpireAt() != null && order.getExpireAt().isBefore(LocalDateTime.now())) {
-            closeOrder(order, "超时未支付自动关闭");
+            closeOrder(order, "超时未支付自动关闭", "TIMEOUT");
             throw BizException.conflict("订单已超时关闭");
         }
         order.setStatus("WAIT_VERIFY");
@@ -189,21 +197,66 @@ public class OrderService {
     }
 
     @Transactional
-    public BizOrders cancel(Long buyerId, String orderNo) {
+    public BizOrders cancel(Long operatorId, String orderNo) {
         BizOrders order = byNo(orderNo);
-        if (!order.getBuyerId().equals(buyerId) && !order.getSellerId().equals(buyerId)) {
+        boolean isBuyer = order.getBuyerId().equals(operatorId);
+        boolean isSeller = order.getSellerId().equals(operatorId);
+        if (!isBuyer && !isSeller) {
             throw BizException.forbidden("无权取消该订单");
         }
-        if (!"PENDING_PAY".equals(order.getStatus())) {
-            throw BizException.conflict("只有待支付订单可以取消");
+        LocalDateTime now = LocalDateTime.now();
+        if ("PENDING_PAY".equals(order.getStatus())) {
+            closeOrder(order, isBuyer ? "买家取消订单" : "卖家取消订单",
+                    isBuyer ? "BUYER_CANCEL" : "SELLER_CANCEL");
+            return order;
         }
-        closeOrder(order, "买家取消");
-        return order;
+        if ("WAIT_VERIFY".equals(order.getStatus())) {
+            boolean meetPassed = order.getMeetTime() != null && now.isAfter(order.getMeetTime());
+            String closeType = isBuyer ? "PAID_CANCEL" : "SELLER_CANCEL";
+            closeOrder(order,
+                    isBuyer ? "买家付款后取消，款项原路退回" : "卖家取消交易，款项原路退回", closeType);
+            noticeService.push(isBuyer ? order.getSellerId() : order.getBuyerId(), "ORDER", "订单已取消",
+                    "订单 " + orderNo + " 已取消，款项原路退回买家。", "ORDER", order.getId());
+            if (isSeller) {
+                addCredit(order.getSellerId(), -3, "SELLER_CANCEL", "卖家取消已付款订单", "ORDER", order.getId());
+            } else if (meetPassed) {
+                addCredit(order.getBuyerId(), -3, "PAID_CANCEL", "约定时间已到仍取消交易", "ORDER", order.getId());
+            }
+            return order;
+        }
+        throw BizException.conflict("订单当前状态不可取消：" + order.getStatus());
     }
 
     // ------------------------------------------------------------------ 核销码
 
-    /** 买家出示核销码：6 位数字，15 分钟有效；过期后再次获取会换新码。 */
+    /**
+     * 核销码硬截止：约定交易时间 + 15 分钟。未约定时间时以生成时间 + 15 分钟为准。
+     */
+    private LocalDateTime codeDeadline(BizOrders order, LocalDateTime now) {
+        int ttl = props.getVerifyCodeTtlMinutes();
+        LocalDateTime ttlDeadline = now.plusMinutes(ttl);
+        LocalDateTime meetDeadline = order.getMeetTime() == null ? null : order.getMeetTime().plusMinutes(ttl);
+        if (meetDeadline == null) {
+            return ttlDeadline;
+        }
+        return meetDeadline.isBefore(ttlDeadline) ? meetDeadline : ttlDeadline;
+    }
+
+    /** 生成一枚新核销码（卖家发起 / 过期换新），有效期取「15 分钟」与「约定时间 +15 分钟」的较小者。 */
+    private void issueCode(BizOrders order) {
+        LocalDateTime now = LocalDateTime.now();
+        if (order.getMeetTime() != null && now.isAfter(order.getMeetTime().plusMinutes(props.getVerifyCodeTtlMinutes()))) {
+            throw BizException.conflict("已超过约定交易时间 15 分钟，请先与买家重新约定时间");
+        }
+        order.setVerifyCode(String.format("%06d", RANDOM.nextInt(1_000_000)));
+        order.setVerifyExpireAt(codeDeadline(order, now));
+        ordersMapper.updateById(order);
+    }
+
+    /**
+     * 买家出示核销码：6 位数字，15 分钟有效；过期后再次获取会换新码。
+     * 但超过约定交易时间 15 分钟后不再换新，需由卖家重新生成。
+     */
     @Transactional
     public Map<String, Object> verifyCode(String orderNo, Long userId) {
         BizOrders order = byNo(orderNo);
@@ -214,12 +267,13 @@ public class OrderService {
             throw BizException.conflict("订单当前状态不可出示核销码：" + order.getStatus());
         }
         LocalDateTime now = LocalDateTime.now();
+        if (order.getMeetTime() != null && now.isAfter(order.getMeetTime().plusMinutes(props.getVerifyCodeTtlMinutes()))) {
+            throw BizException.conflict("已超过约定交易时间 15 分钟，核销码已失效，请联系卖家重新生成");
+        }
         boolean expired = order.getVerifyExpireAt() == null || order.getVerifyExpireAt().isBefore(now)
                 || order.getVerifyCode() == null || order.getVerifyCode().length() != 6;
         if (expired) {
-            order.setVerifyCode(String.format("%06d", RANDOM.nextInt(1_000_000)));
-            order.setVerifyExpireAt(now.plusMinutes(props.getVerifyCodeTtlMinutes()));
-            ordersMapper.updateById(order);
+            issueCode(order);
         }
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("code", order.getVerifyCode());
@@ -227,6 +281,29 @@ public class OrderService {
         map.put("remainSeconds", Math.max(0, Duration.between(now, order.getVerifyExpireAt()).getSeconds()));
         map.put("expireAt", order.getVerifyExpireAt());
         map.put("ttlMinutes", props.getVerifyCodeTtlMinutes());
+        map.put("meetTime", order.getMeetTime());
+        return map;
+    }
+
+    /** 卖家（或商户）重新生成核销码：约定时间过后 15 分钟内仍可重发，重发后原码立即作废。 */
+    @Transactional
+    public Map<String, Object> regenerateVerifyCode(Long operatorId, String orderNo) {
+        BizOrders order = byNo(orderNo);
+        SysUser operator = userMapper.selectById(operatorId);
+        boolean admin = operator != null && "ADMIN".equals(operator.getRole());
+        if (!order.getSellerId().equals(operatorId) && !admin) {
+            throw BizException.forbidden("只有卖家可以重新生成核销码");
+        }
+        if (!"WAIT_VERIFY".equals(order.getStatus())) {
+            throw BizException.conflict("订单当前状态不可生成核销码：" + order.getStatus());
+        }
+        issueCode(order);
+        noticeService.push(order.getBuyerId(), "ORDER", "核销码已重新生成",
+                "订单 " + orderNo + " 的核销码已由卖家重新生成，请重新出示（15 分钟内有效）。", "ORDER", order.getId());
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("code", order.getVerifyCode());
+        map.put("expireAt", order.getVerifyExpireAt());
+        map.put("remainSeconds", Math.max(0, Duration.between(LocalDateTime.now(), order.getVerifyExpireAt()).getSeconds()));
         return map;
     }
 
@@ -248,8 +325,12 @@ public class OrderService {
         if (order.getVerifyCode() == null || order.getVerifyCode().isBlank()) {
             throw BizException.conflict("买家尚未生成核销码");
         }
+        if (order.getMeetTime() != null
+                && LocalDateTime.now().isAfter(order.getMeetTime().plusMinutes(props.getVerifyCodeTtlMinutes()))) {
+            throw BizException.conflict("已超过约定交易时间 15 分钟，核销码失效，请让卖家重新生成");
+        }
         if (order.getVerifyExpireAt() == null || order.getVerifyExpireAt().isBefore(LocalDateTime.now())) {
-            throw BizException.conflict("核销码已过期，请让买家重新出示");
+            throw BizException.conflict("核销码已过期，请让卖家重新生成");
         }
         if (code == null || !code.trim().equals(order.getVerifyCode())) {
             throw BizException.conflict("核销码不正确");
@@ -288,9 +369,35 @@ public class OrderService {
 
         addCredit(order.getBuyerId(), 5, "DEAL_DONE", "完成一次交易", "ORDER", order.getId());
         addCredit(order.getSellerId(), 5, "DEAL_DONE", "完成一次交易", "ORDER", order.getId());
+        settlePromotion(order);
         noticeService.push(order.getBuyerId(), "ORDER", "交易完成",
                 "订单 " + orderNo + " 已完成，记得互相评价。", "ORDER", order.getId());
         return order;
+    }
+
+    /** 下线买家完成交易后，按成交额给运营计提推广提成（同一订单只记一次）。 */
+    private void settlePromotion(BizOrders order) {
+        BizPromotion promo = promotionMapper.selectOne(new LambdaQueryWrapper<BizPromotion>()
+                .eq(BizPromotion::getInviteeId, order.getBuyerId()).last("limit 1"));
+        if (promo == null) {
+            return;
+        }
+        BigDecimal rate = BigDecimal.valueOf(props.getPromoterRate()).setScale(4, RoundingMode.HALF_UP);
+        BigDecimal amount = order.getAmount() == null ? BigDecimal.ZERO
+                : order.getAmount().multiply(rate).setScale(2, RoundingMode.HALF_UP);
+        BizCommission c = new BizCommission();
+        c.setPromoterId(promo.getPromoterId());
+        c.setOrderId(order.getId());
+        c.setOrderNo(order.getOrderNo());
+        c.setOrderAmount(order.getAmount());
+        c.setRate(rate);
+        c.setAmount(amount);
+        c.setStatus("PENDING");
+        try {
+            commissionMapper.insert(c);
+        } catch (DuplicateKeyException ignore) {
+            log.debug("提成已存在 orderNo={}", order.getOrderNo());
+        }
     }
 
     // ------------------------------------------------------------------ 约见
@@ -370,7 +477,7 @@ public class OrderService {
     // ------------------------------------------------------------------ 退货/介入
 
     @Transactional
-    public BizRefund applyRefund(Long buyerId, String orderNo, String reason, String photoUrl) {
+    public BizRefund applyRefund(Long buyerId, String orderNo, String reason, String photoUrl, String refundType) {
         BizOrders order = byNo(orderNo);
         if (!order.getBuyerId().equals(buyerId)) {
             throw BizException.forbidden("只有买家可以申请退货");
@@ -382,11 +489,13 @@ public class OrderService {
             throw BizException.conflict("已超过 7 天售后期限");
         }
         if (reason == null || reason.isBlank()) {
-            throw BizException.badRequest("请填写退货原因");
+            throw BizException.badRequest("请填写退款原因");
         }
+        String type = "REFUND_ONLY".equalsIgnoreCase(refundType) ? "REFUND_ONLY" : "RETURN";
         BizRefund refund = new BizRefund();
         refund.setOrderId(order.getId());
         refund.setApplicantId(buyerId);
+        refund.setRefundType(type);
         refund.setReason(reason.trim());
         refund.setEvidenceUrl(photoUrl == null ? "" : photoUrl);
         refund.setAmount(order.getAmount());
@@ -398,8 +507,9 @@ public class OrderService {
         order.setStatus("REFUNDING");
         order.setRefundReason(reason.trim());
         ordersMapper.updateById(order);
-        noticeService.push(order.getSellerId(), "REFUND", "买家申请退货",
-                "订单 " + orderNo + " 买家申请退货：" + reason, "ORDER", order.getId());
+        noticeService.push(order.getSellerId(), "REFUND", "REFUND_ONLY".equals(type) ? "买家申请仅退款" : "买家申请退货退款",
+                "订单 " + orderNo + " 买家申请" + ("REFUND_ONLY".equals(type) ? "仅退款" : "退货退款")
+                        + "：" + reason, "ORDER", order.getId());
         return refund;
     }
 
@@ -420,6 +530,13 @@ public class OrderService {
         refund.setDecidedBy(sellerId);
         refund.setDecidedAt(LocalDateTime.now());
         refundMapper.updateById(refund);
+        if ("REFUND_ONLY".equalsIgnoreCase(refund.getRefundType())) {
+            refund.setStatus("REFUNDED");
+            refund.setRefundedAt(LocalDateTime.now());
+            refundMapper.updateById(refund);
+            markRefunded(order, "卖家已同意仅退款，款项原路退回");
+            return refund;
+        }
         order.setStatus("REFUND_AGREED");
         ordersMapper.updateById(order);
         noticeService.push(order.getBuyerId(), "REFUND", "卖家已同意退货",
@@ -515,8 +632,12 @@ public class OrderService {
         refund.setDecidedAt(LocalDateTime.now());
         refundMapper.updateById(refund);
         if (buyerWin) {
+            addCredit(order.getSellerId(), -5, "ARBITRATION_SELLER_FAULT",
+                    "平台判定卖家责任（商品与描述不符等）", "REFUND", refund.getId());
             markRefunded(order, "平台判定支持买家，强制退款");
         } else {
+            addCredit(order.getBuyerId(), -5, "ARBITRATION_BUYER_FAULT",
+                    "平台判定买家责任（人为损坏等）", "REFUND", refund.getId());
             order.setStatus("COMPLETED");
             ordersMapper.updateById(order);
             noticeService.push(order.getBuyerId(), "REFUND", "平台判定结果",
@@ -594,7 +715,7 @@ public class OrderService {
                 .lt(BizOrders::getExpireAt, LocalDateTime.now()));
         for (BizOrders order : list) {
             try {
-                closeOrder(order, "超时未支付自动关闭");
+                closeOrder(order, "超时未支付自动关闭", "TIMEOUT");
             } catch (Exception e) {
                 log.warn("关闭订单失败 orderNo={} err={}", order.getOrderNo(), e.getMessage());
             }
@@ -617,6 +738,10 @@ public class OrderService {
     private void markRefunded(BizOrders order, String note) {
         order.setStatus("REFUNDED");
         ordersMapper.updateById(order);
+        commissionMapper.update(null, new LambdaUpdateWrapper<BizCommission>()
+                .eq(BizCommission::getOrderId, order.getId())
+                .eq(BizCommission::getStatus, "PENDING")
+                .set(BizCommission::getStatus, "CANCELLED"));
         listingMapper.update(null, new LambdaUpdateWrapper<BizListing>()
                 .eq(BizListing::getId, order.getListingId())
                 .set(BizListing::getStatus, "ON_SALE"));
@@ -626,8 +751,9 @@ public class OrderService {
                 "订单 " + order.getOrderNo() + " " + note, "ORDER", order.getId());
     }
 
-    private void closeOrder(BizOrders order, String reason) {
+    private void closeOrder(BizOrders order, String reason, String closeType) {
         order.setStatus("CLOSED");
+        order.setCloseType(closeType == null ? "" : closeType);
         order.setClosedAt(LocalDateTime.now());
         order.setRemark(reason);
         ordersMapper.updateById(order);

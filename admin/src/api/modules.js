@@ -46,7 +46,7 @@ export function getOrders(params) {
 }
 
 export function getOrderDetail(orderNo) {
-  return request.get(`/v1/orders/${orderNo}`)
+  return request.get(`/v1/admin/orders/${orderNo}`)
 }
 
 // ---------- 退款仲裁 ----------
@@ -69,7 +69,7 @@ export function getUsers(params) {
 }
 
 export function freezeUser(id, frozen) {
-  return request.post(`/v1/admin/users/${id}/freeze`, { frozen })
+  return request.post(`/v1/admin/users/${id}/${frozen ? 'freeze' : 'unfreeze'}`)
 }
 
 // ---------- 工单 ----------
@@ -84,4 +84,21 @@ export function resolveTicket(id, data) {
 // ---------- 接龙 ----------
 export function getGroupBuys(params) {
   return request.get('/v1/admin/group-buys', { params })
+}
+
+// ---------- 进阶码 / 运营端 ----------
+export function getUpgradeCodes(params) {
+  return request.get('/v1/admin/upgrade-codes', { params })
+}
+
+export function generateUpgradeCodes(data) {
+  return request.post('/v1/admin/upgrade-codes', data) // { targetRole, count, expireDays }
+}
+
+export function revokeUpgradeCode(id) {
+  return request.post(`/v1/admin/upgrade-codes/${id}/revoke`)
+}
+
+export function getOperators(params) {
+  return request.get('/v1/admin/operators', { params })
 }

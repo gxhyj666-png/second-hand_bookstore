@@ -101,7 +101,9 @@ const menus = [
     icon: 'Setting',
     children: [
       { path: '/merchants', title: '商户审核', icon: 'Shop' },
-      { path: '/refunds', title: '纠纷仲裁', icon: 'Warning' }
+      { path: '/refunds', title: '纠纷仲裁', icon: 'Warning' },
+      { path: '/upgrade-codes', title: '进阶码管理', icon: 'Key' },
+      { path: '/operators', title: '运营人员', icon: 'Avatar' }
     ]
   }
 ]

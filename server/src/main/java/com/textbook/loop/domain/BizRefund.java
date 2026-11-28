@@ -27,6 +27,9 @@ public class BizRefund implements Serializable {
     /** 申请方（通常买家） */
     private Long applicantId;
 
+    /** RETURN 退货退款 / REFUND_ONLY 仅退款 */
+    private String refundType;
+
     private String reason;
 
     /** 凭证照片 */

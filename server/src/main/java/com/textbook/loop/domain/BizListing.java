@@ -53,6 +53,9 @@ public class BizListing implements Serializable {
     /** 封面（首图） */
     private String coverUrl;
 
+    /** 展示视频（可选） */
+    private String videoUrl;
+
     /** 图片数 */
     private Integer imageCount;
 

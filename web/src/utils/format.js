@@ -43,7 +43,17 @@ export const LISTING_STATUS = {
   REJECTED: { text: '审核未过', tone: 'danger' }
 }
 
-export const orderStatusText = (s) => ORDER_STATUS[s]?.text || s || '未知'
+export const CLOSE_TYPE_TEXT = {
+  TIMEOUT: '超时取消',
+  BUYER_CANCEL: '买家取消',
+  SELLER_CANCEL: '卖家取消',
+  PAID_CANCEL: '付款后取消'
+}
+
+export const orderStatusText = (s, closeType) => {
+  if (s === 'CLOSED' && closeType) return CLOSE_TYPE_TEXT[closeType] || '已关闭'
+  return ORDER_STATUS[s]?.text || s || '未知'
+}
 export const listingStatusText = (s) => LISTING_STATUS[s]?.text || s || '未知'
 export const conditionText = (c) => CONDITION_LABEL[c] || c || '未标注'
 

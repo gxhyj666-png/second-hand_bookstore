@@ -89,7 +89,7 @@
           <span class="muted small">{{ photoCount }} / 7</span>
         </div>
         <p class="muted photo-tip">
-          封面、封底、版权页为必传，内页最多 4 张。开发期不上传对象存储，仅本地预览并提交 URL 占位串。
+          封面、封底、版权页为必传，内页最多 4 张。照片上传到平台存储，发布后可直接展示。
         </p>
         <div class="photo-grid">
           <div v-for="slot in PHOTO_SLOTS" :key="slot.type" class="photo-item">
@@ -100,6 +100,18 @@
             />
             <p class="slot-type" :class="{ req: slot.required }">{{ slot.type }}{{ slot.required ? ' · 必传' : '' }}</p>
           </div>
+        </div>
+      </section>
+
+      <!-- 展示视频（可选） -->
+      <section class="card photo-card">
+        <div class="between">
+          <strong>展示视频</strong>
+          <span class="muted small">可选 · 30 秒内</span>
+        </div>
+        <p class="muted photo-tip">可拍一段翻书视频，展示内页与品相，比照片更有说服力。</p>
+        <div class="video-slot">
+          <DemoUploader v-model="videoUrl" label="上传视频" kind="video" file-key="video" />
         </div>
       </section>
 
@@ -239,6 +251,7 @@ const photos = reactive({
   CONTENT4: ''
 })
 const photoCount = computed(() => PHOTO_SLOTS.filter((s) => photos[s.type]).length)
+const videoUrl = ref('')
 const submitting = ref(false)
 
 const bookPopup = ref(false)
@@ -392,7 +405,8 @@ async function submit() {
       condition: form.condition,
       description: form.description.trim(),
       dorm: form.dorm.trim(),
-      images: urls
+      images: urls,
+      videoUrl: videoUrl.value
     })
     if (res?.id) {
       try {

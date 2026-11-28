@@ -85,8 +85,11 @@ public class SysUser implements Serializable {
     /** 信用分，默认 100 */
     private Integer creditScore;
 
-    /** STUDENT/LEADER/MERCHANT/ADMIN */
+    /** STUDENT/LEADER/MERCHANT/OPERATOR/ADMIN */
     private String role;
+
+    /** 运营推广码（仅 OPERATOR 有） */
+    private String promoCode;
 
     /** UNVERIFIED/PENDING/VERIFIED/REJECTED */
     private String verifyState;

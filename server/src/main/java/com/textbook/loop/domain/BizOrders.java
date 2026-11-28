@@ -46,6 +46,9 @@ public class BizOrders implements Serializable {
     /** PENDING_PAY/WAIT_VERIFY/COMPLETED/REFUNDING/REFUND_AGREED/REFUNDED/ARBITRATING/CLOSED（旧值 FROZEN/VERIFIED/SETTLED 兼容读取） */
     private String status;
 
+    /** TIMEOUT/BUYER_CANCEL/SELLER_CANCEL/PAID_CANCEL */
+    private String closeType;
+
     /** 6 位随机核销码，买家出示、卖家输入 */
     private String verifyCode;
 

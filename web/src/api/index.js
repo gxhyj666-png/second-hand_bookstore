@@ -9,6 +9,7 @@ export const authApi = {
   wechat: (code) => request.post('/v1/auth/wechat', { code }),
   me: () => request.get('/v1/auth/me'),
   updateProfile: (data) => request.put('/v1/auth/profile', data),
+  setPassword: (data) => request.post('/v1/auth/password', data), // { oldPassword, newPassword }
   verifyStudent: (data) => request.post('/v1/auth/verify-student', data) // { studentNo, realName }
 }
 
@@ -59,11 +60,12 @@ export const orderApi = {
   pay: (orderNo, channel = 'MOCK') => request.post(`/v1/orders/${orderNo}/pay`, { channel }),
   cancel: (orderNo) => request.post(`/v1/orders/${orderNo}/cancel`),
   verifyCode: (orderNo) => request.get(`/v1/orders/${orderNo}/verify-code`),
+  regenerateVerifyCode: (orderNo) => request.post(`/v1/orders/${orderNo}/verify-code/regenerate`),
   verify: (orderNo, data) => request.post(`/v1/orders/${orderNo}/verify`, data), // 卖家 { code, signPhotoUrl }
   meets: (orderNo) => request.get(`/v1/orders/${orderNo}/meets`),
   createMeet: (orderNo, data) => request.post(`/v1/orders/${orderNo}/meets`, data), // { type, place, time }
   confirmMeet: (meetId, data) => request.post(`/v1/orders/meets/${meetId}/confirm`, data), // { agreed, note }
-  refund: (orderNo, data) => request.post(`/v1/orders/${orderNo}/refund`, data), // { reason, photoUrl }
+  refund: (orderNo, data) => request.post(`/v1/orders/${orderNo}/refund`, data), // { reason, photoUrl, refundType }
   agreeRefund: (refundId) => request.post(`/v1/orders/refunds/${refundId}/agree`),
   rejectRefund: (refundId, data) => request.post(`/v1/orders/refunds/${refundId}/reject`, data), // { reason }
   finishRefund: (refundId) => request.post(`/v1/orders/refunds/${refundId}/finish`),
@@ -129,3 +131,39 @@ export const noticeApi = {
 }
 
 export const healthApi = () => request.get('/v1/health')
+
+/** 存储：图片与视频统一上传，返回可访问 URL */
+export const fileApi = {
+  upload: (file, kind = 'image') => {
+    const form = new FormData()
+    form.append('file', file)
+    form.append('kind', kind)
+    return request.post('/v1/files/upload', form)
+  }
+}
+
+/** 进阶：个体 → 商户 / 运营 */
+export const upgradeApi = {
+  redeem: (data) => request.post('/v1/upgrade/redeem', data) // { code, shopName, contact }
+}
+
+/** 运营端 */
+export const operatorApi = {
+  overview: () => request.get('/v1/operator/overview'),
+  invitees: (params) => request.get('/v1/operator/invitees', { params }),
+  commissions: (params) => request.get('/v1/operator/commissions', { params }),
+  complaints: (params) => request.get('/v1/operator/complaints', { params }),
+  handleComplaint: (id, data) => request.post(`/v1/operator/complaints/${id}/handle`, data),
+  offlineVerifies: (params) => request.get('/v1/operator/offline-verifies', { params }),
+  reviewOffline: (id, data) => request.post(`/v1/operator/offline-verifies/${id}/review`, data)
+}
+
+/** 推广关系绑定（普通用户填运营推广码） */
+export const promotionApi = {
+  bind: (promoCode) => request.post('/v1/promotion/bind', { promoCode })
+}
+
+/** 线下认证材料提交 */
+export const offlineVerifyApi = {
+  apply: (data) => request.post('/v1/verify/offline', data) // { verifyType, materialUrl, note }
+}

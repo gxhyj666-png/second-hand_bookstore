@@ -54,6 +54,7 @@ CREATE TABLE IF NOT EXISTS sys_user (
     merchant_id  BIGINT       NOT NULL DEFAULT 0,
     credit_score INT          NOT NULL DEFAULT 100,
     role         VARCHAR(16)  NOT NULL DEFAULT 'STUDENT',
+    promo_code   VARCHAR(16)  NULL,
     verify_state VARCHAR(16)  NOT NULL DEFAULT 'UNVERIFIED',
     status       VARCHAR(16)  NOT NULL DEFAULT 'NORMAL',
     last_login   DATETIME     NULL,
@@ -61,7 +62,8 @@ CREATE TABLE IF NOT EXISTS sys_user (
     updated_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     deleted      TINYINT      NOT NULL DEFAULT 0,
     PRIMARY KEY (id),
-    CONSTRAINT sys_user_uk_openid UNIQUE (openid)
+    CONSTRAINT sys_user_uk_openid UNIQUE (openid),
+    CONSTRAINT sys_user_uk_promo_code UNIQUE (promo_code)
 );
 
 -- -----------------------------------------------------------------------------
@@ -158,6 +160,7 @@ CREATE TABLE IF NOT EXISTS biz_listing (
     condition_level VARCHAR(16) NOT NULL DEFAULT 'LIKE_NEW',
     description    VARCHAR(500) NOT NULL DEFAULT '',
     cover_url      VARCHAR(255) NOT NULL DEFAULT '',
+    video_url      VARCHAR(255) NOT NULL DEFAULT '',
     image_count    INT          NOT NULL DEFAULT 0,
     dorm           VARCHAR(64)  NOT NULL DEFAULT '',
     status         VARCHAR(16)  NOT NULL DEFAULT 'ON_SALE',
@@ -210,6 +213,7 @@ CREATE TABLE IF NOT EXISTS biz_orders (
     amount         DECIMAL(10,2) NOT NULL,
     commission     DECIMAL(10,2) NOT NULL DEFAULT 0.00,
     status         VARCHAR(16)  NOT NULL DEFAULT 'PENDING_PAY',
+    close_type     VARCHAR(24)  NOT NULL DEFAULT '',
     verify_code    VARCHAR(16)  NOT NULL DEFAULT '',
     verify_expire_at DATETIME   NULL,
     meet_place     VARCHAR(128) NOT NULL DEFAULT '',
@@ -556,6 +560,7 @@ CREATE TABLE IF NOT EXISTS biz_refund (
     id               BIGINT        NOT NULL AUTO_INCREMENT,
     order_id         BIGINT        NOT NULL,
     applicant_id     BIGINT        NOT NULL,
+    refund_type      VARCHAR(16)   NOT NULL DEFAULT 'RETURN',
     reason           VARCHAR(255)  NOT NULL,
     evidence_url     VARCHAR(255)  NOT NULL DEFAULT '',
     amount           DECIMAL(10,2) NOT NULL DEFAULT 0.00,
@@ -617,5 +622,73 @@ CREATE TABLE IF NOT EXISTS biz_message (
     ref_id          BIGINT       NOT NULL DEFAULT 0,
     read_flag       TINYINT      NOT NULL DEFAULT 0,
     created_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
+);
+
+-- -----------------------------------------------------------------------------
+-- 34. 进阶码（平台下发给商户/运营的升级凭证，一码一用）
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS sys_upgrade_code (
+    id          BIGINT       NOT NULL AUTO_INCREMENT,
+    code        VARCHAR(16)  NOT NULL,
+    target_role VARCHAR(16)  NOT NULL,
+    status      VARCHAR(16)  NOT NULL DEFAULT 'UNUSED',
+    batch_no    VARCHAR(32)  NOT NULL DEFAULT '',
+    issued_by   BIGINT       NOT NULL DEFAULT 0,
+    used_by     BIGINT       NOT NULL DEFAULT 0,
+    used_at     DATETIME     NULL,
+    expire_at   DATETIME     NULL,
+    remark      VARCHAR(255) NOT NULL DEFAULT '',
+    created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    CONSTRAINT sys_upgrade_code_uk_code UNIQUE (code)
+);
+
+-- -----------------------------------------------------------------------------
+-- 35. 推广关系（运营推广码绑定下线，一个用户只归属一个运营）
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS biz_promotion (
+    id          BIGINT       NOT NULL AUTO_INCREMENT,
+    promoter_id BIGINT       NOT NULL,
+    invitee_id  BIGINT       NOT NULL,
+    promo_code  VARCHAR(16)  NOT NULL,
+    source      VARCHAR(16)  NOT NULL DEFAULT 'CODE',
+    bound_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    CONSTRAINT biz_promotion_uk_invitee UNIQUE (invitee_id)
+);
+
+-- -----------------------------------------------------------------------------
+-- 36. 提成明细（下线订单核销完成后按比例计提，平台端可结算）
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS biz_commission (
+    id           BIGINT        NOT NULL AUTO_INCREMENT,
+    promoter_id  BIGINT        NOT NULL,
+    order_id     BIGINT        NOT NULL,
+    order_no     VARCHAR(32)   NOT NULL,
+    order_amount DECIMAL(10,2) NOT NULL,
+    rate         DECIMAL(6,4)  NOT NULL,
+    amount       DECIMAL(10,2) NOT NULL,
+    status       VARCHAR(16)   NOT NULL DEFAULT 'PENDING',
+    settle_at    DATETIME      NULL,
+    created_at   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    CONSTRAINT biz_commission_uk_order UNIQUE (order_id)
+);
+
+-- -----------------------------------------------------------------------------
+-- 37. 线下认证与核实（运营线下核验身份证/学生证/商户资质）
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS biz_offline_verify (
+    id             BIGINT        NOT NULL AUTO_INCREMENT,
+    user_id        BIGINT        NOT NULL,
+    verify_type    VARCHAR(16)   NOT NULL DEFAULT 'STUDENT',
+    material_url   VARCHAR(1000) NOT NULL DEFAULT '',
+    applicant_note VARCHAR(255)  NOT NULL DEFAULT '',
+    status         VARCHAR(16)   NOT NULL DEFAULT 'PENDING',
+    operator_id    BIGINT        NOT NULL DEFAULT 0,
+    remark         VARCHAR(255)  NOT NULL DEFAULT '',
+    verified_at    DATETIME      NULL,
+    created_at     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id)
 );

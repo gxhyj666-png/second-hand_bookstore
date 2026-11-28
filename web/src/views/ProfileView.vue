@@ -22,6 +22,16 @@
 
       <p class="muted tip">学院、专业与宿舍会帮助买家判断交易距离，建议如实填写。</p>
 
+      <h2 class="section-title">登录密码</h2>
+      <van-cell-group inset class="form-group">
+        <van-field v-model="pwd.oldPassword" type="password" label="原密码" placeholder="首次设置可留空" clearable />
+        <van-field v-model="pwd.newPassword" type="password" label="新密码" placeholder="至少 6 位" clearable />
+      </van-cell-group>
+      <p class="muted tip">短信登录的用户可在此首次设置密码，之后可用「手机号 + 密码」登录。</p>
+      <div class="submit-wrap pwd-submit">
+        <van-button block round plain type="primary" :loading="savingPwd" @click="savePassword">保存密码</van-button>
+      </div>
+
       <div class="submit-wrap">
         <van-button block round type="primary" :loading="saving" loading-text="保存中" @click="save">保存资料</van-button>
       </div>
@@ -33,13 +43,16 @@
 import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast } from 'vant'
+import { authApi } from '@/api'
 import { useUserStore } from '@/store/user'
 
 const router = useRouter()
 const store = useUserStore()
 
 const saving = ref(false)
+const savingPwd = ref(false)
 const avatarError = ref(false)
+const pwd = reactive({ oldPassword: '', newPassword: '' })
 const form = reactive({
   nickname: '',
   avatar: '',
@@ -81,6 +94,22 @@ async function save() {
     // 请求层已经提示
   } finally {
     saving.value = false
+  }
+}
+
+async function savePassword() {
+  if (savingPwd.value) return
+  if (!pwd.newPassword || pwd.newPassword.length < 6) return showToast('新密码至少 6 位')
+  savingPwd.value = true
+  try {
+    await authApi.setPassword({ oldPassword: pwd.oldPassword, newPassword: pwd.newPassword })
+    pwd.oldPassword = ''
+    pwd.newPassword = ''
+    showToast('密码已保存')
+  } catch {
+    // 请求层已经提示
+  } finally {
+    savingPwd.value = false
   }
 }
 
@@ -139,5 +168,13 @@ onMounted(async () => {
 }
 .submit-wrap {
   padding: 22px 0 28px;
+}
+.section-title {
+  font-size: 13px;
+  color: var(--ink-2);
+  margin: 20px 20px 8px;
+}
+.pwd-submit {
+  padding: 12px 0 0;
 }
 </style>

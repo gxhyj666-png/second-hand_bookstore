@@ -82,6 +82,43 @@ public class AuthService {
     }
 
     /**
+     * 个人中心设置/修改登录密码：短信注册的用户首次设置免旧密码，已有密码的必须校验旧密码。
+     */
+    @Transactional
+    public void setPassword(Long userId, String oldPassword, String newPassword) {
+        if (newPassword == null || newPassword.length() < 6) {
+            throw BizException.badRequest("新密码至少 6 位");
+        }
+        SysUser user = userMapper.selectById(userId);
+        if (user == null) {
+            throw BizException.notFound("用户不存在");
+        }
+        String phone = user.getPhone();
+        if (phone == null || phone.isBlank()) {
+            throw BizException.conflict("当前账号未绑定手机号，暂不支持密码登录");
+        }
+        UserAuth auth = authMapper.selectOne(new LambdaQueryWrapper<UserAuth>()
+                .eq(UserAuth::getAuthType, "PASSWORD")
+                .eq(UserAuth::getIdentifier, phone)
+                .last("limit 1"));
+        if (auth == null) {
+            auth = new UserAuth();
+            auth.setUserId(userId);
+            auth.setAuthType("PASSWORD");
+            auth.setIdentifier(phone);
+            auth.setCredential(encoder.encode(newPassword));
+            auth.setVerified(1);
+            authMapper.insert(auth);
+            return;
+        }
+        if (!encoder.matches(oldPassword == null ? "" : oldPassword, auth.getCredential())) {
+            throw BizException.badRequest("原密码不正确");
+        }
+        auth.setCredential(encoder.encode(newPassword));
+        authMapper.updateById(auth);
+    }
+
+    /**
      * 微信登录（教学演示版）：code 直接当作 openid，未注册则自动建号。
      */
     @Transactional

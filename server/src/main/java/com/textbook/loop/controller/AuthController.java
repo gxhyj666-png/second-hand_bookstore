@@ -39,6 +39,9 @@ public class AuthController {
     public record VerifyReq(String studentNo, String realName) {
     }
 
+    public record PasswordReq(String oldPassword, String newPassword) {
+    }
+
     @PostMapping("/register")
     public ApiResponse<TokenView> register(@RequestBody RegisterReq req) {
         return ApiResponse.ok(authService.register(req.phone(), req.password(), req.nickname()));
@@ -68,5 +71,12 @@ public class AuthController {
     @PostMapping("/verify-student")
     public ApiResponse<Object> verifyStudent(@RequestBody VerifyReq req) {
         return ApiResponse.ok(authService.verifyStudent(UserContext.requireUserId(), req.studentNo(), req.realName()));
+    }
+
+    /** 个人中心设置/修改密码：短信注册用户首次设置免旧密码。 */
+    @PostMapping("/password")
+    public ApiResponse<Void> setPassword(@RequestBody PasswordReq req) {
+        authService.setPassword(UserContext.requireUserId(), req.oldPassword(), req.newPassword());
+        return ApiResponse.ok();
     }
 }

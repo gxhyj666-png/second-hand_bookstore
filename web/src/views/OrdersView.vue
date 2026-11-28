@@ -34,7 +34,7 @@
           <div v-for="o in orders" :key="o.orderNo" class="card order-card" @click="goDetail(o)">
             <div class="order-top between">
               <span class="order-no">订单 {{ shortNo(o.orderNo) }}</span>
-              <span class="tag" :class="statusTone(o.status)">{{ orderStatusText(o.status) }}</span>
+              <span class="tag" :class="statusTone(o.status)">{{ orderStatusText(o.status, o.closeType) }}</span>
             </div>
 
             <div class="order-body">
@@ -147,7 +147,7 @@ function hintOf(o) {
   if (s === 'REFUNDING') return role.value === 'buyer' ? '退款申请等待卖家处理' : '买家申请退款，请尽快处理'
   if (s === 'REFUND_AGREED') return '已同意退货，等待买家确认退货完成'
   if (s === 'ARBITRATING') return '平台正在介入处理退款纠纷'
-  return orderStatusText(s)
+  return orderStatusText(s, o.closeType)
 }
 
 function onImgError(e) {

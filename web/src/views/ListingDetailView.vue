@@ -25,6 +25,11 @@
           </span>
         </div>
 
+        <section v-if="listing?.videoUrl" class="card video-card">
+          <h2 class="card-title">展示视频</h2>
+          <video :src="listing.videoUrl" controls playsinline preload="metadata" class="detail-video" />
+        </section>
+
         <section class="card main-card">
           <div class="price-row">
             <span class="price big">{{ money(listing?.price) }}</span>
@@ -427,6 +432,14 @@ onMounted(load)
 }
 .loading-line.short {
   width: 50%;
+}
+.video-card {
+  margin-top: 12px;
+}
+.detail-video {
+  width: 100%;
+  border-radius: 10px;
+  background: #000;
 }
 .gallery {
   position: relative;

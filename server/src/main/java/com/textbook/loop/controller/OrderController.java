@@ -40,7 +40,7 @@ public class OrderController {
     public record MeetConfirmReq(boolean agreed, String note) {
     }
 
-    public record RefundReq(String reason, String photoUrl) {
+    public record RefundReq(String reason, String photoUrl, String refundType) {
     }
 
     public record RejectReq(String reason) {
@@ -82,10 +82,16 @@ public class OrderController {
         return ApiResponse.ok(orderService.cancel(UserContext.requireUserId(), orderNo));
     }
 
-    /** 买家出示 6 位核销码（15 分钟有效）。 */
+    /** 买家出示 6 位核销码（15 分钟有效，且不晚于约定时间后 15 分钟）。 */
     @GetMapping("/{orderNo}/verify-code")
     public ApiResponse<Map<String, Object>> verifyCode(@PathVariable String orderNo) {
         return ApiResponse.ok(orderService.verifyCode(orderNo, UserContext.requireUserId()));
+    }
+
+    /** 卖家重新生成核销码（约定时间过后 15 分钟内仍可重发，原码立即作废）。 */
+    @PostMapping("/{orderNo}/verify-code/regenerate")
+    public ApiResponse<Map<String, Object>> regenerateVerifyCode(@PathVariable String orderNo) {
+        return ApiResponse.ok(orderService.regenerateVerifyCode(UserContext.requireUserId(), orderNo));
     }
 
     /** 卖家线下核销：核销码 + 签到照片。 */
@@ -117,7 +123,8 @@ public class OrderController {
 
     @PostMapping("/{orderNo}/refund")
     public ApiResponse<BizRefund> applyRefund(@PathVariable String orderNo, @RequestBody RefundReq req) {
-        return ApiResponse.ok(orderService.applyRefund(UserContext.requireUserId(), orderNo, req.reason(), req.photoUrl()));
+        return ApiResponse.ok(orderService.applyRefund(UserContext.requireUserId(), orderNo,
+                req.reason(), req.photoUrl(), req.refundType()));
     }
 
     @PostMapping("/refunds/{refundId}/agree")

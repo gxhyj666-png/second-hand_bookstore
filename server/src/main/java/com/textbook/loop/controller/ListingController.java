@@ -33,10 +33,10 @@ public class ListingController {
     }
 
     public record PublishReq(Long textbookId, Long courseId, BigDecimal price, String condition,
-                             String description, String dorm, List<String> images) {
+                             String description, String dorm, List<String> images, String videoUrl) {
     }
 
-    public record UpdateReq(BigDecimal price, String description, String dorm) {
+    public record UpdateReq(BigDecimal price, String description, String dorm, String videoUrl) {
     }
 
     public record TrackReq(String event, String refType, Long refId, String page, String sessionId) {
@@ -45,7 +45,7 @@ public class ListingController {
     @PostMapping("/listings")
     public ApiResponse<BizListing> publish(@RequestBody PublishReq req) {
         return ApiResponse.ok(listingService.publish(UserContext.requireUserId(), req.textbookId(), req.courseId(),
-                req.price(), req.condition(), req.description(), req.dorm(), req.images()));
+                req.price(), req.condition(), req.description(), req.dorm(), req.images(), req.videoUrl()));
     }
 
     @GetMapping("/listings")
@@ -76,7 +76,7 @@ public class ListingController {
     @PutMapping("/listings/{id}")
     public ApiResponse<BizListing> update(@PathVariable Long id, @RequestBody UpdateReq req) {
         return ApiResponse.ok(listingService.update(UserContext.requireUserId(), id, req.price(),
-                req.description(), req.dorm()));
+                req.description(), req.dorm(), req.videoUrl()));
     }
 
     @PostMapping("/listings/{id}/offline")

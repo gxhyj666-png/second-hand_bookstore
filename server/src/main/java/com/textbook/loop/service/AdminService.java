@@ -11,6 +11,8 @@ import com.textbook.loop.domain.BizReview;
 import com.textbook.loop.domain.BizTicket;
 import com.textbook.loop.domain.StatDaily;
 import com.textbook.loop.domain.SysAdminLog;
+import com.textbook.loop.domain.SysCourse;
+import com.textbook.loop.domain.SysCourseTextbook;
 import com.textbook.loop.domain.SysTextbook;
 import com.textbook.loop.domain.SysUser;
 import com.textbook.loop.mapper.BizGroupBuyMapper;
@@ -21,6 +23,8 @@ import com.textbook.loop.mapper.BizTicketMapper;
 import com.textbook.loop.mapper.BizTrackEventMapper;
 import com.textbook.loop.mapper.StatDailyMapper;
 import com.textbook.loop.mapper.SysAdminLogMapper;
+import com.textbook.loop.mapper.SysCourseMapper;
+import com.textbook.loop.mapper.SysCourseTextbookMapper;
 import com.textbook.loop.mapper.SysTextbookMapper;
 import com.textbook.loop.mapper.SysUserMapper;
 import org.springframework.stereotype.Service;
@@ -50,12 +54,15 @@ public class AdminService {
     private final BizTrackEventMapper trackMapper;
     private final StatDailyMapper statMapper;
     private final SysAdminLogMapper adminLogMapper;
+    private final SysCourseTextbookMapper courseTextbookMapper;
+    private final SysCourseMapper courseMapper;
 
     public AdminService(SysUserMapper userMapper, BizListingMapper listingMapper, BizOrdersMapper ordersMapper,
                         SysTextbookMapper textbookMapper, BizTicketMapper ticketMapper,
                         BizGroupBuyMapper groupBuyMapper, BizReviewMapper reviewMapper,
                         BizTrackEventMapper trackMapper, StatDailyMapper statMapper,
-                        SysAdminLogMapper adminLogMapper) {
+                        SysAdminLogMapper adminLogMapper, SysCourseTextbookMapper courseTextbookMapper,
+                        SysCourseMapper courseMapper) {
         this.userMapper = userMapper;
         this.listingMapper = listingMapper;
         this.ordersMapper = ordersMapper;
@@ -66,6 +73,8 @@ public class AdminService {
         this.trackMapper = trackMapper;
         this.statMapper = statMapper;
         this.adminLogMapper = adminLogMapper;
+        this.courseTextbookMapper = courseTextbookMapper;
+        this.courseMapper = courseMapper;
     }
 
     public Map<String, Object> dashboard() {
@@ -222,6 +231,16 @@ public class AdminService {
                 .orderByDesc(BizOrders::getId)));
     }
 
+    /** 后台按订单号查详情：不受买卖双方归属限制（仲裁页需要）。 */
+    public BizOrders orderDetail(String orderNo) {
+        BizOrders order = ordersMapper.selectOne(new LambdaQueryWrapper<BizOrders>()
+                .eq(BizOrders::getOrderNo, orderNo).last("limit 1"));
+        if (order == null) {
+            throw BizException.notFound("订单不存在");
+        }
+        return order;
+    }
+
     public PageResult<SysTextbook> textbooks(String keyword, long page, long size) {
         return PageResult.of(textbookMapper.selectPage(Page.of(page, size), new LambdaQueryWrapper<SysTextbook>()
                 .and(keyword != null && !keyword.isBlank(), w -> w
@@ -248,6 +267,26 @@ public class AdminService {
     public void deleteTextbook(Long adminId, Long id) {
         textbookMapper.deleteById(id);
         log(adminId, "TEXTBOOK_DELETE", "TEXTBOOK:" + id, "");
+    }
+
+    /** 教材关联的课程（后台教材库展开行）。 */
+    public List<Map<String, Object>> textbookCourses(Long textbookId) {
+        List<SysCourseTextbook> binds = courseTextbookMapper.selectList(
+                new LambdaQueryWrapper<SysCourseTextbook>()
+                        .eq(SysCourseTextbook::getTextbookId, textbookId));
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (SysCourseTextbook bind : binds) {
+            SysCourse course = courseMapper.selectById(bind.getCourseId());
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("courseId", bind.getCourseId());
+            row.put("name", course == null ? "已删除课程" : course.getName());
+            row.put("teacher", bind.getTeacher() != null && !bind.getTeacher().isBlank()
+                    ? bind.getTeacher() : (course == null ? "" : course.getTeacher()));
+            row.put("bindType", bind.getBindType());
+            row.put("semester", bind.getSemester());
+            rows.add(row);
+        }
+        return rows;
     }
 
     public PageResult<BizGroupBuy> groupBuys(String status, long page, long size) {

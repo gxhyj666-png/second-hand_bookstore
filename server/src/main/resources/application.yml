@@ -13,6 +13,9 @@ spring:
     encoding:
       charset: UTF-8
       force: true
+    multipart:
+      max-file-size: 30MB
+      max-request-size: 40MB
   mvc:
     problemdetails:
       enabled: false
@@ -32,8 +35,13 @@ mybatis-plus:
 app:
   jwt-secret: ${APP_JWT_SECRET:textbook-loop-dev-secret-change-me-0123456789abcdef}
   jwt-ttl-hours: 168
-  order-expire-minutes: 15
+  # 待支付订单仅维持 5 分钟，超时自动关闭（文档口径）
+  order-expire-minutes: 5
   commission-rate: 0.05
+  # 运营推广提成比例：下线订单核销完成后按成交额计提
+  promoter-rate: ${APP_PROMOTER_RATE:0.01}
+  # 图片/视频上传落盘目录（相对进程工作目录）
+  upload-dir: ${APP_UPLOAD_DIR:./uploads}
   verify-secret: ${APP_VERIFY_SECRET:textbook-loop-verify-secret-0123456789}
   verify-window-seconds: 30
   verify-code-ttl-minutes: 15

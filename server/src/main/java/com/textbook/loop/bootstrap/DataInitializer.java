@@ -50,6 +50,16 @@ public class DataInitializer implements CommandLineRunner {
         long clerkId = user("王书店", "13800000004", "CLERK", "", "后勤集团", "", "", "图书馆西门", 100, "VERIFIED", "123456");
         long leaderId = user("陈班长", "13800000005", "LEADER", "2023123111", "计算机学院", "软件工程", "2023",
                 "梅园 3 栋 301", 100, "VERIFIED", "123456");
+        long operatorId = user("赵运营", "13800000006", "OPERATOR", "", "计算机学院", "", "", "校外", 100, "VERIFIED", "123456");
+        jdbc.update("update sys_user set promo_code=? where id=?", "YUN001", operatorId);
+        jdbc.update("insert into biz_promotion (promoter_id, invitee_id, promo_code, source) values (?,?,?,?)",
+                operatorId, buyerId, "YUN001", "CODE");
+        jdbc.update("insert into sys_upgrade_code (code, target_role, status, batch_no, issued_by, remark) "
+                        + "values (?,?,?,?,?,?)",
+                "SHOP2026", "MERCHANT", "UNUSED", "SEED", adminId, "演示商户进阶码");
+        jdbc.update("insert into sys_upgrade_code (code, target_role, status, batch_no, issued_by, remark) "
+                        + "values (?,?,?,?,?,?)",
+                "OPER2026", "OPERATOR", "UNUSED", "SEED", adminId, "演示运营进阶码");
 
         long mathCourse = course("MATH101", "高等数学 A（上）", "数学学院", "计算机学院", "2026-2027-1", "赵平", new BigDecimal("5.0"));
         long linearCourse = course("MATH102", "线性代数", "数学学院", "计算机学院", "2026-2027-1", "周敏", new BigDecimal("3.0"));

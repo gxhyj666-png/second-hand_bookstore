@@ -12,10 +12,14 @@ public class AppProps {
     private String jwtSecret = "textbook-loop-dev-secret-key-please-change-in-production";
     /** JWT 有效期（小时） */
     private int jwtTtlHours = 168;
-    /** 订单支付超时（分钟） */
-    private int orderExpireMinutes = 15;
+    /** 订单支付超时（分钟）：待支付仅维持 5 分钟，超时自动关闭 */
+    private int orderExpireMinutes = 5;
     /** 平台服务费比例 */
     private double commissionRate = 0.05;
+    /** 运营推广提成比例（下线订单核销后按成交额计提） */
+    private double promoterRate = 0.01;
+    /** 上传文件落盘目录（图片/视频），生产可指向对象存储挂载点 */
+    private String uploadDir = "./uploads";
     /** 核销码签名密钥 */
     private String verifySecret = "verify-code-dev-secret-please-change";
     /** 核销码轮换窗口（秒） */
@@ -143,6 +147,22 @@ public class AppProps {
 
     public void setCommissionRate(double commissionRate) {
         this.commissionRate = commissionRate;
+    }
+
+    public double getPromoterRate() {
+        return promoterRate;
+    }
+
+    public void setPromoterRate(double promoterRate) {
+        this.promoterRate = promoterRate;
+    }
+
+    public String getUploadDir() {
+        return uploadDir;
+    }
+
+    public void setUploadDir(String uploadDir) {
+        this.uploadDir = uploadDir;
     }
 
     public String getVerifySecret() {

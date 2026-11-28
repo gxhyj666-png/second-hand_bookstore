@@ -53,7 +53,8 @@ CREATE TABLE sys_user (
     student_card_info  VARCHAR(255) NOT NULL DEFAULT '' COMMENT '学生证信息页图片',
     merchant_id  BIGINT       NOT NULL DEFAULT 0 COMMENT '所属商户 ID，0 表示个人卖家',
     credit_score INT          NOT NULL DEFAULT 100 COMMENT '信用分，默认 100',
-    role         VARCHAR(16)  NOT NULL DEFAULT 'STUDENT' COMMENT 'STUDENT/LEADER/MERCHANT/ADMIN',
+    role         VARCHAR(16)  NOT NULL DEFAULT 'STUDENT' COMMENT 'STUDENT/LEADER/MERCHANT/OPERATOR/ADMIN',
+    promo_code   VARCHAR(16)  NULL COMMENT '运营推广码（仅 OPERATOR 有，唯一，NULL 不占唯一位）',
     verify_state VARCHAR(16)  NOT NULL DEFAULT 'UNVERIFIED' COMMENT 'UNVERIFIED/PENDING/VERIFIED/REJECTED',
     status       VARCHAR(16)  NOT NULL DEFAULT 'NORMAL' COMMENT 'NORMAL/FROZEN',
     last_login   DATETIME     NULL COMMENT '最后登录时间',
@@ -62,6 +63,7 @@ CREATE TABLE sys_user (
     deleted      TINYINT      NOT NULL DEFAULT 0,
     PRIMARY KEY (id),
     UNIQUE KEY uk_openid (openid),
+    UNIQUE KEY uk_promo_code (promo_code),
     KEY idx_phone (phone),
     KEY idx_student (school_id, student_no),
     KEY idx_role (role)
@@ -167,6 +169,7 @@ CREATE TABLE biz_listing (
     condition_level VARCHAR(16) NOT NULL DEFAULT 'LIKE_NEW' COMMENT 'NEW/ LIKE_NEW(9成新)/GOOD(8成新)/FAIR(有笔记)/POOR',
     description    VARCHAR(500) NOT NULL DEFAULT '' COMMENT '描述',
     cover_url      VARCHAR(255) NOT NULL DEFAULT '' COMMENT '封面（首图）',
+    video_url      VARCHAR(255) NOT NULL DEFAULT '' COMMENT '展示视频（可选，30 秒内）',
     image_count    INT          NOT NULL DEFAULT 0 COMMENT '图片数',
     dorm           VARCHAR(64)  NOT NULL DEFAULT '' COMMENT '所在宿舍楼',
     status         VARCHAR(16)  NOT NULL DEFAULT 'ON_SALE' COMMENT 'ON_SALE/LOCKED/SOLD/OFFLINE/REJECTED',
@@ -226,8 +229,9 @@ CREATE TABLE biz_orders (
     amount         DECIMAL(10,2) NOT NULL COMMENT '商品金额',
     commission     DECIMAL(10,2) NOT NULL DEFAULT 0.00 COMMENT '平台服务费',
     status         VARCHAR(16)  NOT NULL DEFAULT 'PENDING_PAY' COMMENT 'PENDING_PAY/WAIT_VERIFY/COMPLETED/REFUNDING/REFUND_AGREED/REFUNDED/ARBITRATING/CLOSED（旧值 FROZEN/VERIFIED/SETTLED 兼容读取）',
+    close_type     VARCHAR(24)  NOT NULL DEFAULT '' COMMENT '关闭原因：TIMEOUT 超时/BUYER_CANCEL 买家取消/SELLER_CANCEL 卖家取消/PAID_CANCEL 付款后取消',
     verify_code    VARCHAR(16)  NOT NULL DEFAULT '' COMMENT '6 位随机核销码，买家出示、卖家输入',
-    verify_expire_at DATETIME   NULL COMMENT '核销码有效期（生成后 15 分钟）',
+    verify_expire_at DATETIME   NULL COMMENT '核销码有效期（生成后 15 分钟，且不超过约定交易时间后 15 分钟）',
     meet_place     VARCHAR(128) NOT NULL DEFAULT '' COMMENT '交易地点（双方确认）',
     meet_time      DATETIME     NULL COMMENT '交易时间（双方确认）',
     sign_photo_url VARCHAR(255) NOT NULL DEFAULT '' COMMENT '线下交易签到照片（卖家上传）',
@@ -237,7 +241,7 @@ CREATE TABLE biz_orders (
     trade_no       VARCHAR(64)  NOT NULL DEFAULT '' COMMENT '第三方支付流水号',
     remark         VARCHAR(255) NOT NULL DEFAULT '',
     refund_reason  VARCHAR(255) NOT NULL DEFAULT '',
-    expire_at      DATETIME     NOT NULL COMMENT '支付超时时间（15 分钟）',
+    expire_at      DATETIME     NOT NULL COMMENT '支付超时时间（下单后 5 分钟）',
     paid_at        DATETIME     NULL,
     verified_at    DATETIME     NULL,
     settled_at     DATETIME     NULL,
@@ -597,6 +601,7 @@ CREATE TABLE biz_refund (
     id               BIGINT        NOT NULL AUTO_INCREMENT,
     order_id         BIGINT        NOT NULL,
     applicant_id     BIGINT        NOT NULL COMMENT '申请方（通常买家）',
+    refund_type      VARCHAR(16)   NOT NULL DEFAULT 'RETURN' COMMENT 'RETURN 退货退款 / REFUND_ONLY 仅退款',
     reason           VARCHAR(255)  NOT NULL,
     evidence_url     VARCHAR(255)  NOT NULL DEFAULT '' COMMENT '凭证照片',
     amount           DECIMAL(10,2) NOT NULL DEFAULT 0.00,
@@ -666,3 +671,76 @@ CREATE TABLE biz_message (
     PRIMARY KEY (id),
     KEY idx_conv (conversation_id, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='消息';
+
+-- -----------------------------------------------------------------------------
+-- 34. 进阶码（平台下发给商户/运营的升级凭证，一码一用）
+-- -----------------------------------------------------------------------------
+CREATE TABLE sys_upgrade_code (
+    id          BIGINT       NOT NULL AUTO_INCREMENT,
+    code        VARCHAR(16)  NOT NULL COMMENT '8 位进阶码',
+    target_role VARCHAR(16)  NOT NULL COMMENT 'MERCHANT 商户 / OPERATOR 运营',
+    status      VARCHAR(16)  NOT NULL DEFAULT 'UNUSED' COMMENT 'UNUSED/USED/REVOKED',
+    batch_no    VARCHAR(32)  NOT NULL DEFAULT '',
+    issued_by   BIGINT       NOT NULL DEFAULT 0 COMMENT '生成人（管理员）',
+    used_by     BIGINT       NOT NULL DEFAULT 0,
+    used_at     DATETIME     NULL,
+    expire_at   DATETIME     NULL,
+    remark      VARCHAR(255) NOT NULL DEFAULT '',
+    created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_code (code),
+    KEY idx_role_status (target_role, status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='商户/运营进阶码';
+
+-- -----------------------------------------------------------------------------
+-- 35. 推广关系（运营推广码绑定下线，一个用户只归属一个运营）
+-- -----------------------------------------------------------------------------
+CREATE TABLE biz_promotion (
+    id          BIGINT       NOT NULL AUTO_INCREMENT,
+    promoter_id BIGINT       NOT NULL COMMENT '运营用户 ID',
+    invitee_id  BIGINT       NOT NULL COMMENT '被推广用户 ID',
+    promo_code  VARCHAR(16)  NOT NULL,
+    source      VARCHAR(16)  NOT NULL DEFAULT 'CODE' COMMENT 'CODE/LINK/QR',
+    bound_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_invitee (invitee_id),
+    KEY idx_promoter (promoter_id, bound_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='推广绑定关系';
+
+-- -----------------------------------------------------------------------------
+-- 36. 提成明细（下线订单核销完成后按比例计提，平台端可结算）
+-- -----------------------------------------------------------------------------
+CREATE TABLE biz_commission (
+    id           BIGINT        NOT NULL AUTO_INCREMENT,
+    promoter_id  BIGINT        NOT NULL,
+    order_id     BIGINT        NOT NULL,
+    order_no     VARCHAR(32)   NOT NULL,
+    order_amount DECIMAL(10,2) NOT NULL,
+    rate         DECIMAL(6,4)  NOT NULL,
+    amount       DECIMAL(10,2) NOT NULL,
+    status       VARCHAR(16)   NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING 待结算/SETTLED 已结算/CANCELLED 已退款取消',
+    settle_at    DATETIME      NULL,
+    created_at   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_order (order_id),
+    KEY idx_promoter (promoter_id, status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='推广提成明细';
+
+-- -----------------------------------------------------------------------------
+-- 37. 线下认证与核实（运营线下核验身份证/学生证/商户资质）
+-- -----------------------------------------------------------------------------
+CREATE TABLE biz_offline_verify (
+    id             BIGINT        NOT NULL AUTO_INCREMENT,
+    user_id        BIGINT        NOT NULL,
+    verify_type    VARCHAR(16)   NOT NULL DEFAULT 'STUDENT' COMMENT 'ID_CARD/STUDENT/MERCHANT',
+    material_url   VARCHAR(1000) NOT NULL DEFAULT '' COMMENT '材料照片，逗号分隔',
+    applicant_note VARCHAR(255)  NOT NULL DEFAULT '',
+    status         VARCHAR(16)   NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING/PASSED/REJECTED',
+    operator_id    BIGINT        NOT NULL DEFAULT 0,
+    remark         VARCHAR(255)  NOT NULL DEFAULT '',
+    verified_at    DATETIME      NULL,
+    created_at     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_user (user_id),
+    KEY idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='线下认证与核实';

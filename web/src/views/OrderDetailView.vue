@@ -22,7 +22,7 @@
         <section class="status-hero" :class="statusTone">
           <van-icon :name="statusIcon" size="26" />
           <div class="status-main">
-            <h1>{{ orderStatusText(order.status) }}</h1>
+            <h1>{{ orderStatusText(order.status, order.closeType) }}</h1>
             <p>{{ statusDesc }}</p>
           </div>
         </section>
@@ -32,9 +32,12 @@
           <p class="code-label">到店核销码</p>
           <div class="code-value">{{ code || '------' }}</div>
           <p v-if="countdown > 0" class="muted code-timer">
-            剩余有效时间 <strong>{{ mmss }}</strong>，过期自动换新码
+            剩余有效时间 <strong>{{ mmss }}</strong>，超时后需卖家重新生成
           </p>
           <p v-else class="muted code-timer">正在获取最新核销码…</p>
+          <p v-if="order.meetTime" class="muted code-timer">
+            约定时间 {{ fmtTime(order.meetTime) }}，超过约定时间 15 分钟核销码自动失效
+          </p>
           <p v-if="codeError" class="code-error">{{ codeError }}</p>
           <van-button size="small" round plain type="primary" :loading="codeLoading" @click="loadCode">
             刷新验证码
@@ -72,6 +75,18 @@
           >
             确认核销
           </van-button>
+          <van-button
+            block
+            round
+            plain
+            type="primary"
+            class="submit-btn"
+            :loading="regenerating"
+            @click="regenerateCode"
+          >
+            重新生成核销码
+          </van-button>
+          <p class="muted tip-line">买家核销码失效或未出示时，由你重新生成，旧码立即作废。</p>
         </section>
 
         <!-- 退款卡片 -->
@@ -241,7 +256,8 @@
             <van-button round type="primary" :loading="paying" @click="pay">去支付</van-button>
           </template>
           <template v-else-if="isBuyer && order.status === 'WAIT_VERIFY'">
-            <van-button block round type="primary" :loading="codeLoading" @click="loadCode">
+            <van-button round plain :loading="cancelling" @click="cancel">取消订单</van-button>
+            <van-button round type="primary" :loading="codeLoading" @click="loadCode">
               刷新核销码
             </van-button>
           </template>
@@ -257,7 +273,8 @@
             </van-button>
           </template>
           <template v-else-if="isSeller && order.status === 'WAIT_VERIFY'">
-            <van-button block round type="primary" @click="scrollToVerify">去核销</van-button>
+            <van-button round plain :loading="cancelling" @click="cancel">取消订单</van-button>
+            <van-button round type="primary" @click="scrollToVerify">去核销</van-button>
           </template>
         </div>
       </div>
@@ -270,7 +287,11 @@
           <strong>申请退款</strong>
           <van-icon name="cross" size="18" @click="refundPopup = false" />
         </div>
-        <p class="muted tip-line">完成交易 7 天内可申请；请如实说明问题并上传凭证。</p>
+        <p class="muted tip-line">完成交易 7 天内可申请；退货退款需再约时间地点当面退回，仅退款由卖家同意后直接退回钱款。</p>
+        <van-radio-group v-model="refundForm.type" direction="horizontal" class="meet-type">
+          <van-radio name="RETURN">退货退款</van-radio>
+          <van-radio name="REFUND_ONLY">仅退款</van-radio>
+        </van-radio-group>
         <van-field v-model="refundForm.reason" type="textarea" rows="3" autosize maxlength="200" label="退款原因" placeholder="例如：缺页、品相与描述不符" />
         <div class="refund-photo">
           <DemoUploader v-model="refundForm.photoUrl" label="问题凭证" file-key="refund" />
@@ -345,6 +366,7 @@ let clock = null
 const paying = ref(false)
 const cancelling = ref(false)
 const verifying = ref(false)
+const regenerating = ref(false)
 const refunding = ref(false)
 const agreeing = ref(false)
 const rejecting = ref(false)
@@ -355,7 +377,7 @@ const creatingMeet = ref(false)
 const confirmingId = ref(null)
 
 const verifyForm = reactive({ code: '', signPhotoUrl: '' })
-const refundForm = reactive({ reason: '', photoUrl: '' })
+const refundForm = reactive({ reason: '', photoUrl: '', type: 'RETURN' })
 const meetForm = reactive({ type: 'TRADE', place: '', datetime: '' })
 const refundPopup = ref(false)
 const meetPopup = ref(false)
@@ -462,7 +484,13 @@ const statusDesc = computed(() => {
     REFUND_AGREED: '卖家已同意退货，寄回/交付后由买家确认完成',
     REFUNDED: '订单已退款',
     ARBITRATING: '平台正在介入处理退款纠纷',
-    CLOSED: '订单已关闭'
+    CLOSED:
+      {
+        TIMEOUT: '超过 5 分钟未支付，订单已自动关闭',
+        BUYER_CANCEL: '买家取消了订单，商品已重新上架',
+        SELLER_CANCEL: '卖家取消了订单，款项原路退回',
+        PAID_CANCEL: '付款后取消，款项原路退回'
+      }[order.value?.closeType] || '订单已关闭'
   }
   return map[s] || '订单状态更新中'
 })
@@ -666,10 +694,13 @@ async function pay() {
 
 async function cancel() {
   if (cancelling.value) return
+  const paid = order.value?.status === 'WAIT_VERIFY'
   try {
     await showConfirmDialog({
       title: '取消订单',
-      message: '取消后订单将关闭，确定吗？',
+      message: paid
+        ? '该订单已支付。取消后订单关闭、款项原路退回；若在约定时间后取消或卖家已到场，可能扣除 3 点信誉分。确定取消？'
+        : '取消后订单将关闭，确定吗？',
       confirmButtonText: '取消订单'
     })
   } catch {
@@ -684,6 +715,28 @@ async function cancel() {
     // 请求层已经提示
   } finally {
     cancelling.value = false
+  }
+}
+
+async function regenerateCode() {
+  if (regenerating.value) return
+  try {
+    await showConfirmDialog({
+      title: '重新生成核销码',
+      message: '生成后旧核销码立即作废，请让买家重新出示。确定生成？',
+      confirmButtonText: '生成'
+    })
+  } catch {
+    return
+  }
+  regenerating.value = true
+  try {
+    const res = await orderApi.regenerateVerifyCode(orderNo)
+    showToast(`新核销码 ${res?.code || ''} 已生成，请告知买家`)
+  } catch {
+    // 请求层已经提示
+  } finally {
+    regenerating.value = false
   }
 }
 
@@ -713,7 +766,8 @@ async function applyRefund() {
   try {
     const res = await orderApi.refund(orderNo, {
       reason: refundForm.reason.trim(),
-      photoUrl: refundForm.photoUrl
+      photoUrl: refundForm.photoUrl,
+      refundType: refundForm.type
     })
     if (res?.id) {
       refundId.value = String(res.id)

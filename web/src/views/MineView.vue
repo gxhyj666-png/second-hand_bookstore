@@ -116,17 +116,31 @@ const QUICK = [
   { text: '消息通知', path: '/notices', icon: 'volume-o', badge: true }
 ]
 
-const MENU = [
-  { text: '实名 / 学生认证', path: '/verify-center', icon: 'idcard' },
-  { text: '我的发布', path: '/search?mine=1', icon: 'notes-o' },
-  { text: '私信会话', path: '/messages', icon: 'chat-o' },
-  { text: '商户入驻', path: '/merchant', icon: 'shop-o' },
-  { text: '信用记录', path: '/credit', icon: 'chart-trending-o' },
-  { text: '纠纷工单', path: '/tickets', icon: 'service-o' },
-  { text: '班级接龙', path: '/group-buys', icon: 'friends-o' },
-  { text: '自提点', path: '/pickup', icon: 'location-o' },
-  { text: '个人资料', path: '/profile', icon: 'contact-o' }
-]
+const MENU = computed(() => {
+  const role = store.user?.role
+  const list = [
+    { text: '实名 / 学生认证', path: '/verify-center', icon: 'idcard' },
+    { text: '我的发布', path: '/search?mine=1', icon: 'notes-o' },
+    { text: '私信会话', path: '/messages', icon: 'chat-o' }
+  ]
+  if (role === 'OPERATOR') {
+    list.push({ text: '运营中心', path: '/operator', icon: 'friends-o' })
+  }
+  if (!role || role === 'STUDENT' || role === 'LEADER') {
+    list.push({ text: '进阶商户 / 运营', path: '/upgrade', icon: 'upgrade' })
+  }
+  if (role === 'MERCHANT' || role === 'ADMIN') {
+    list.push({ text: '商户中心', path: '/merchant', icon: 'shop-o' })
+  }
+  list.push(
+    { text: '信用记录', path: '/credit', icon: 'chart-trending-o' },
+    { text: '纠纷工单', path: '/tickets', icon: 'service-o' },
+    { text: '班级接龙', path: '/group-buys', icon: 'friends-o' },
+    { text: '自提点', path: '/pickup', icon: 'location-o' },
+    { text: '个人资料', path: '/profile', icon: 'contact-o' }
+  )
+  return list
+})
 
 const verifyText = computed(() => {
   if (store.canTrade) return '可交易'

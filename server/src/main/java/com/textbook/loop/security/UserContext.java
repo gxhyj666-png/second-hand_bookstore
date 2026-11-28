@@ -53,4 +53,13 @@ public final class UserContext {
             throw BizException.forbidden("需要管理员权限");
         }
     }
+
+    /** 运营端权限：OPERATOR 或管理员。 */
+    public static void requireOperator() {
+        LoginUser user = HOLDER.get();
+        boolean ok = user != null && ("OPERATOR".equals(user.role()) || "ADMIN".equals(user.role()));
+        if (!ok) {
+            throw BizException.forbidden("需要运营权限");
+        }
+    }
 }

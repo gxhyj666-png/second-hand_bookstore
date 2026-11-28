@@ -43,9 +43,14 @@ public class ListingService {
         this.userMapper = userMapper;
     }
 
-    @Transactional
     public BizListing publish(Long sellerId, Long textbookId, Long courseId, BigDecimal price, String condition,
                               String description, String dorm, List<String> images) {
+        return publish(sellerId, textbookId, courseId, price, condition, description, dorm, images, "");
+    }
+
+    @Transactional
+    public BizListing publish(Long sellerId, Long textbookId, Long courseId, BigDecimal price, String condition,
+                              String description, String dorm, List<String> images, String videoUrl) {
         SysTextbook book = textbookMapper.selectById(textbookId);
         if (book == null) {
             throw BizException.notFound("教材不存在，请先选择教材");
@@ -66,6 +71,7 @@ public class ListingService {
         l.setConditionLevel(condition);
         l.setDescription(description);
         l.setCoverUrl(images != null && !images.isEmpty() ? images.get(0) : book.getCoverUrl());
+        l.setVideoUrl(videoUrl == null ? "" : videoUrl.trim());
         l.setImageCount(images == null ? 0 : images.size());
         l.setDorm(dorm);
         l.setStatus("ON_SALE");
@@ -143,7 +149,7 @@ public class ListingService {
     }
 
     @Transactional
-    public BizListing update(Long userId, Long id, BigDecimal price, String description, String dorm) {
+    public BizListing update(Long userId, Long id, BigDecimal price, String description, String dorm, String videoUrl) {
         BizListing l = owned(userId, id);
         if (!"ON_SALE".equals(l.getStatus())) {
             throw BizException.conflict("仅可在售商品可编辑");
@@ -156,6 +162,9 @@ public class ListingService {
         }
         if (dorm != null) {
             l.setDorm(dorm);
+        }
+        if (videoUrl != null) {
+            l.setVideoUrl(videoUrl.trim());
         }
         listingMapper.updateById(l);
         return l;

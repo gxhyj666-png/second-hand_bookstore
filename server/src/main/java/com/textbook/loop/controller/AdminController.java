@@ -8,11 +8,14 @@ import com.textbook.loop.domain.BizOrders;
 import com.textbook.loop.domain.BizReview;
 import com.textbook.loop.domain.BizTicket;
 import com.textbook.loop.domain.SysTextbook;
+import com.textbook.loop.domain.SysUpgradeCode;
 import com.textbook.loop.domain.SysUser;
 import com.textbook.loop.security.UserContext;
 import com.textbook.loop.service.AdminService;
 import com.textbook.loop.service.MerchantService;
+import com.textbook.loop.service.OperatorService;
 import com.textbook.loop.service.TicketService;
+import com.textbook.loop.service.UpgradeService;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -35,12 +38,20 @@ public class AdminController {
     private final AdminService adminService;
     private final TicketService ticketService;
     private final MerchantService merchantService;
+    private final UpgradeService upgradeService;
+    private final OperatorService operatorService;
 
     public AdminController(AdminService adminService, TicketService ticketService,
-                           MerchantService merchantService) {
+                           MerchantService merchantService, UpgradeService upgradeService,
+                           OperatorService operatorService) {
         this.adminService = adminService;
         this.ticketService = ticketService;
         this.merchantService = merchantService;
+        this.upgradeService = upgradeService;
+        this.operatorService = operatorService;
+    }
+
+    public record GenerateCodesReq(String targetRole, Integer count, Integer expireDays) {
     }
 
     public record RejectReq(String reason) {
@@ -121,6 +132,13 @@ public class AdminController {
         return ApiResponse.ok(adminService.orders(status, page, size));
     }
 
+    /** 后台按订单号查详情（仲裁页使用，不做买卖双方归属校验）。 */
+    @GetMapping("/orders/{orderNo}")
+    public ApiResponse<BizOrders> orderDetail(@PathVariable String orderNo) {
+        UserContext.requireAdmin();
+        return ApiResponse.ok(adminService.orderDetail(orderNo));
+    }
+
     @GetMapping("/textbooks")
     public ApiResponse<PageResult<SysTextbook>> textbooks(@RequestParam(required = false) String keyword,
                                                           @RequestParam(defaultValue = "1") long page,
@@ -140,6 +158,13 @@ public class AdminController {
         UserContext.requireAdmin();
         adminService.deleteTextbook(UserContext.requireUserId(), id);
         return ApiResponse.ok();
+    }
+
+    /** 教材关联课程（后台教材库展开行用）。 */
+    @GetMapping("/textbooks/{id}/courses")
+    public ApiResponse<?> textbookCourses(@PathVariable Long id) {
+        UserContext.requireAdmin();
+        return ApiResponse.ok(adminService.textbookCourses(id));
     }
 
     @GetMapping("/tickets")
@@ -195,5 +220,38 @@ public class AdminController {
     public ApiResponse<?> reviewMerchant(@PathVariable Long id, @RequestBody MerchantReviewReq req) {
         UserContext.requireAdmin();
         return ApiResponse.ok(merchantService.review(UserContext.requireUserId(), id, req.approved(), req.reason()));
+    }
+
+    // ---------------- 进阶码 / 运营端 ----------------
+
+    /** 批量生成进阶码（商户码 / 运营码），返回明文码，便于线下发放。 */
+    @PostMapping("/upgrade-codes")
+    public ApiResponse<?> generateUpgradeCodes(@RequestBody GenerateCodesReq req) {
+        UserContext.requireAdmin();
+        return ApiResponse.ok(upgradeService.generate(UserContext.requireUserId(), req.targetRole(),
+                req.count() == null ? 1 : req.count(), req.expireDays() == null ? 30 : req.expireDays()));
+    }
+
+    @GetMapping("/upgrade-codes")
+    public ApiResponse<PageResult<SysUpgradeCode>> upgradeCodes(@RequestParam(required = false) String targetRole,
+                                                               @RequestParam(required = false) String status,
+                                                               @RequestParam(defaultValue = "1") long page,
+                                                               @RequestParam(defaultValue = "20") long size) {
+        UserContext.requireAdmin();
+        return ApiResponse.ok(upgradeService.list(targetRole, status, page, size));
+    }
+
+    @PostMapping("/upgrade-codes/{id}/revoke")
+    public ApiResponse<SysUpgradeCode> revokeUpgradeCode(@PathVariable Long id) {
+        UserContext.requireAdmin();
+        return ApiResponse.ok(upgradeService.revoke(id));
+    }
+
+    /** 运营人员及其推广业绩。 */
+    @GetMapping("/operators")
+    public ApiResponse<PageResult<Map<String, Object>>> operators(@RequestParam(defaultValue = "1") long page,
+                                                                 @RequestParam(defaultValue = "20") long size) {
+        UserContext.requireAdmin();
+        return ApiResponse.ok(operatorService.operators(page, size));
     }
 }
