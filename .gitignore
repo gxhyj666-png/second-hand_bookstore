@@ -44,3 +44,10 @@ out/
 
 # Vite 依赖预构建缓存（在仓库根误跑 vite 时会出现）
 /.vite/
+
+# 上传的图片与视频
+uploads/
+
+# 其他工具的本地状态（不入库）
+/.workbuddy/
+/tools/taskbook/
