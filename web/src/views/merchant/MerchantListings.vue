@@ -77,6 +77,7 @@
         </p>
       </div>
     </van-dialog>
+    <MerchantTabbar />
   </div>
 </template>
 
@@ -86,6 +87,7 @@ import { useRouter } from 'vue-router'
 import { showToast } from 'vant'
 import { merchantApi } from '@/api'
 import { money, conditionText, listingStatusText } from '@/utils/format'
+import MerchantTabbar from '@/components/MerchantTabbar.vue'
 
 const router = useRouter()
 const tabs = [

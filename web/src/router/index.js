@@ -27,6 +27,7 @@ const routes = [
   { path: '/merchant/listings', name: 'merchantListings', component: () => import('@/views/merchant/MerchantListings.vue'), meta: { title: '商品管理', auth: true } },
   { path: '/merchant/orders', name: 'merchantOrders', component: () => import('@/views/merchant/MerchantOrders.vue'), meta: { title: '商户订单', auth: true } },
   { path: '/merchant/settlements', name: 'merchantSettlements', component: () => import('@/views/merchant/MerchantSettlements.vue'), meta: { title: '结算与佣金', auth: true } },
+  { path: '/shop/:id', name: 'shop', component: () => import('@/views/ShopView.vue'), meta: { title: '店铺主页' } },
   { path: '/upgrade', name: 'upgrade', component: () => import('@/views/UpgradeView.vue'), meta: { title: '进阶商户 / 运营', auth: true } },
   { path: '/operator', name: 'operator', component: () => import('@/views/OperatorView.vue'), meta: { title: '运营中心', auth: true } },
   { path: '/profile', name: 'profile', component: () => import('@/views/ProfileView.vue'), meta: { title: '个人资料', auth: true } },

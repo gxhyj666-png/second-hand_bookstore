@@ -14,7 +14,9 @@
         <div class="who">
           <h1>
             {{ profile.nickname }}
-            <span v-if="profile.merchantId" class="shop-tag">商户</span>
+            <span v-if="profile.merchantId" class="shop-tag" @click="router.push(`/shop/${profile.merchantId}`)">
+          商户 · {{ profile.shopName || '进店逛逛' }} ›
+        </span>
           </h1>
           <p class="muted">{{ [profile.college, profile.major, profile.grade && `${profile.grade}级`].filter(Boolean).join(' · ') || '还没有填写学院和专业' }}</p>
           <p v-if="profile.shopName" class="shop">{{ profile.shopName }}</p>

@@ -27,6 +27,11 @@
         </div>
       </div>
 
+      <div class="expose">
+        <span>店铺曝光：浏览 {{ data.views ?? 0 }} · 收藏 {{ data.favorites ?? 0 }}</span>
+        <span class="go" @click="router.push(`/shop/${data.merchantId}`)">查看店铺主页 ›</span>
+      </div>
+
       <section class="card">
         <h2>近 7 日成交</h2>
         <div class="bars">
@@ -49,6 +54,7 @@
     <van-empty v-else description="还没有商户身份，提交入驻资料后即可使用">
       <van-button round type="primary" size="small" @click="router.replace('/merchant')">去申请入驻</van-button>
     </van-empty>
+    <MerchantTabbar />
   </div>
 </template>
 
@@ -58,6 +64,7 @@ import { useRouter } from 'vue-router'
 import { showToast } from 'vant'
 import { merchantApi } from '@/api'
 import { money } from '@/utils/format'
+import MerchantTabbar from '@/components/MerchantTabbar.vue'
 
 const router = useRouter()
 const data = reactive({})
@@ -105,4 +112,20 @@ onMounted(load)
 .bar span { margin-top: 6px; font-size: 10px; color: #98a2b3; }
 .tip { margin: 8px 0 0; font-size: 12px; color: #6b7485; }
 .links { margin: 0 12px; }
+.expose {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 10px 12px 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: #f4f8f6;
+  font-size: 12px;
+  color: #4a5568;
+}
+.expose .go {
+  color: var(--brand);
+  font-weight: 700;
+  cursor: pointer;
+}
 </style>

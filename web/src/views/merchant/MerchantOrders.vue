@@ -37,6 +37,7 @@
     <div v-if="list.length" class="more">
       <van-button size="small" plain :loading="loading" @click="loadMore">加载更多</van-button>
     </div>
+    <MerchantTabbar />
   </div>
 </template>
 
@@ -46,6 +47,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { showToast } from 'vant'
 import { merchantApi } from '@/api'
 import { money, shortDate, orderStatusText } from '@/utils/format'
+import MerchantTabbar from '@/components/MerchantTabbar.vue'
 
 const route = useRoute()
 const router = useRouter()

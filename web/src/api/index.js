@@ -105,6 +105,11 @@ export const merchantApi = {
   settlements: (params) => request.get('/v1/merchant/settlements', { params })
 }
 
+/** 店铺主页（游客可看） */
+export const shopApi = {
+  get: (merchantId, params) => request.get(`/v1/shops/${merchantId}`, { params })
+}
+
 /** 评价与信用 */
 export const socialApi = {
   createReview: (data) => request.post('/v1/reviews', data), // { orderNo, rating, content, anonymous }

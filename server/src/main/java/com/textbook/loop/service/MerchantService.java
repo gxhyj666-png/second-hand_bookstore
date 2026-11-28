@@ -6,11 +6,13 @@ import com.textbook.loop.common.BizException;
 import com.textbook.loop.common.PageResult;
 import com.textbook.loop.domain.BizListing;
 import com.textbook.loop.domain.BizOrders;
+import com.textbook.loop.domain.BizReview;
 import com.textbook.loop.domain.BizSettlement;
 import com.textbook.loop.domain.SysMerchant;
 import com.textbook.loop.domain.SysUser;
 import com.textbook.loop.mapper.BizListingMapper;
 import com.textbook.loop.mapper.BizOrdersMapper;
+import com.textbook.loop.mapper.BizReviewMapper;
 import com.textbook.loop.mapper.BizSettlementMapper;
 import com.textbook.loop.mapper.SysMerchantMapper;
 import com.textbook.loop.mapper.SysUserMapper;
@@ -41,16 +43,19 @@ public class MerchantService {
     private final BizListingMapper listingMapper;
     private final BizOrdersMapper ordersMapper;
     private final BizSettlementMapper settlementMapper;
+    private final BizReviewMapper reviewMapper;
     private final NoticeService noticeService;
 
     public MerchantService(SysMerchantMapper merchantMapper, SysUserMapper userMapper,
                            BizListingMapper listingMapper, BizOrdersMapper ordersMapper,
-                           BizSettlementMapper settlementMapper, NoticeService noticeService) {
+                           BizSettlementMapper settlementMapper, BizReviewMapper reviewMapper,
+                           NoticeService noticeService) {
         this.merchantMapper = merchantMapper;
         this.userMapper = userMapper;
         this.listingMapper = listingMapper;
         this.ordersMapper = ordersMapper;
         this.settlementMapper = settlementMapper;
+        this.reviewMapper = reviewMapper;
         this.noticeService = noticeService;
     }
 
@@ -347,8 +352,121 @@ public class MerchantService {
                 .eq(BizOrders::getMerchantId, m.getId())
                 .in(BizOrders::getStatus, "REFUNDING", "REFUND_AGREED", "ARBITRATING")));
         map.put("pendingPay", orderCount(m.getId(), "PENDING_PAY"));
+        map.put("views", sumMetric(m.getId(), true));
+        map.put("favorites", sumMetric(m.getId(), false));
         map.put("series", series);
         return map;
+    }
+
+    /**
+     * 店铺主页（游客可看）：店铺资料 + 汇总指标 + 在售商品分页 + 最近评价。
+     * 只暴露公开信息，联系方式按脱敏规则输出。
+     */
+    public Map<String, Object> shop(Long merchantId, long page, long size) {
+        SysMerchant m = merchantMapper.selectById(merchantId);
+        if (m == null || (m.getDeleted() != null && m.getDeleted() == 1) || !"APPROVED".equals(m.getStatus())) {
+            throw BizException.notFound("店铺不存在或未通过审核");
+        }
+        long p = page <= 0 ? 1 : page;
+        long s = size <= 0 ? 12 : Math.min(size, 50);
+
+        Page<BizListing> lp = listingMapper.selectPage(new Page<>(p, s),
+                new LambdaQueryWrapper<BizListing>()
+                        .eq(BizListing::getMerchantId, merchantId)
+                        .eq(BizListing::getStatus, "ON_SALE")
+                        .orderByDesc(BizListing::getId));
+        List<Map<String, Object>> listings = lp.getRecords().stream().map(this::listingView).toList();
+
+        long sold = ordersMapper.selectCount(new LambdaQueryWrapper<BizOrders>()
+                .eq(BizOrders::getMerchantId, merchantId)
+                .eq(BizOrders::getStatus, "COMPLETED"));
+        long reviewCount = reviewMapper.selectCount(new LambdaQueryWrapper<BizReview>()
+                .eq(BizReview::getTargetId, m.getUserId())
+                .eq(BizReview::getStatus, "VISIBLE"));
+        List<BizReview> reviews = reviewMapper.selectList(new LambdaQueryWrapper<BizReview>()
+                .eq(BizReview::getTargetId, m.getUserId())
+                .eq(BizReview::getStatus, "VISIBLE")
+                .orderByDesc(BizReview::getId)
+                .last("LIMIT 5"));
+        List<Map<String, Object>> reviewRows = new ArrayList<>();
+        for (BizReview r : reviews) {
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("id", r.getId());
+            row.put("rating", r.getRating());
+            row.put("content", r.getContent());
+            row.put("createdAt", r.getCreatedAt());
+            row.put("reviewer", Integer.valueOf(1).equals(r.getAnonymous()) ? "匿名同学" : nickNames(Set.of(r.getReviewerId())).get(r.getReviewerId()));
+            reviewRows.add(row);
+        }
+
+        Map<String, Object> stats = new LinkedHashMap<>();
+        stats.put("onSale", countOnSale(merchantId));
+        stats.put("sold", sold);
+        stats.put("views", sumMetric(merchantId, true));
+        stats.put("favorites", sumMetric(merchantId, false));
+        stats.put("reviews", reviewCount);
+        stats.put("avgRating", avgRating(m.getUserId(), reviewCount));
+
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("merchantId", m.getId());
+        map.put("shopName", m.getShopName());
+        map.put("contact", maskContact(m.getContact()));
+        map.put("since", m.getApprovedAt() != null ? m.getApprovedAt() : m.getCreatedAt());
+        map.put("stats", stats);
+        map.put("listings", listings);
+        map.put("listingTotal", lp.getTotal());
+        map.put("listingPage", p);
+        map.put("listingSize", s);
+        map.put("reviews", reviewRows);
+        return map;
+    }
+
+    private String maskContact(String contact) {
+        if (contact == null || contact.isBlank()) {
+            return "";
+        }
+        String c = contact.trim();
+        if (c.matches("^1\\d{10}$")) {
+            return c.substring(0, 3) + "****" + c.substring(7);
+        }
+        return c;
+    }
+
+    /** 店铺全部商品的浏览量或收藏量之和 */
+    private long sumMetric(Long merchantId, boolean views) {
+        List<BizListing> all = listingMapper.selectList(new LambdaQueryWrapper<BizListing>()
+                .select(views ? BizListing::getViewCount : BizListing::getFavoriteCount)
+                .eq(BizListing::getMerchantId, merchantId));
+        long sum = 0;
+        for (BizListing l : all) {
+            Integer v = views ? l.getViewCount() : l.getFavoriteCount();
+            if (v != null) {
+                sum += v;
+            }
+        }
+        return sum;
+    }
+
+    private String avgRating(Long targetId, long reviewCount) {
+        if (reviewCount == 0) {
+            return "0.0";
+        }
+        List<BizReview> list = reviewMapper.selectList(new LambdaQueryWrapper<BizReview>()
+                .select(BizReview::getRating)
+                .eq(BizReview::getTargetId, targetId)
+                .eq(BizReview::getStatus, "VISIBLE"));
+        long sum = 0;
+        long n = 0;
+        for (BizReview r : list) {
+            if (r.getRating() != null) {
+                sum += r.getRating();
+                n++;
+            }
+        }
+        if (n == 0) {
+            return "0.0";
+        }
+        return BigDecimal.valueOf(sum * 10 / n).divide(BigDecimal.TEN, 1, RoundingMode.HALF_UP).toPlainString();
     }
 
     /** 结算流水：已完成订单的结算记录（成交金额与平台佣金）。 */

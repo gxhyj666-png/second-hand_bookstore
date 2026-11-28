@@ -207,4 +207,12 @@ public class ExtController {
                                               @RequestParam(defaultValue = "10") long size) {
         return ApiResponse.ok(merchantService.settlements(UserContext.requireUserId(), page, size));
     }
+
+    /** 店铺主页（游客可看）：店铺资料 + 汇总指标 + 在售商品分页 + 最近评价 */
+    @GetMapping("/shops/{merchantId}")
+    public ApiResponse<Map<String, Object>> shop(@PathVariable Long merchantId,
+                                                 @RequestParam(defaultValue = "1") long page,
+                                                 @RequestParam(defaultValue = "12") long size) {
+        return ApiResponse.ok(merchantService.shop(merchantId, page, size));
+    }
 }
