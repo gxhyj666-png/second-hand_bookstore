@@ -300,6 +300,49 @@ a {
   height: 320px;
 }
 
+/* ---------- 看板：待办条与品相分布 ---------- */
+.todo-strip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 14px 0 4px;
+}
+
+.todo-strip .todo-hint {
+  font-size: 12px;
+  color: var(--text-sub);
+}
+
+.cond-box {
+  margin-top: 16px;
+  padding-bottom: 16px;
+}
+
+.cond-list {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.cond-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: #f4f7fc;
+  border: 1px solid var(--border-soft);
+  font-size: 13px;
+  color: var(--text-sub);
+}
+
+.cond-item strong {
+  color: #1f2d3d;
+  font-size: 15px;
+}
+
 /* ---------- 登录页 ---------- */
 .login-page {
   min-height: 100vh;
