@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  构建专用 Maven 配置：把中央仓库换成国内镜像。
+  原因：在阿里云/华为云等国内 ECS 上直连 repo1.maven.org 只有 0.5 MB/s 左右，
+        Spring Boot 全家桶要下 100 MB+，第一次构建会拖到二三十分钟；
+        换成阿里云公共仓库实测 20 MB/s，首次构建缩短到几分钟。
+  只影响镜像构建（Dockerfile 里用 -s 指定），不改变开发者本机的 Maven 配置。
+-->
+<settings xmlns="http://maven.apache.org/SETTINGS/1.2.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.2.0 https://maven.apache.org/xsd/settings-1.2.0.xsd">
+  <mirrors>
+    <mirror>
+      <id>aliyun-public</id>
+      <name>Aliyun Public Repository</name>
+      <url>https://maven.aliyun.com/repository/public</url>
+      <mirrorOf>central</mirrorOf>
+    </mirror>
+  </mirrors>
+</settings>

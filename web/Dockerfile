@@ -1,7 +1,9 @@
 # 用户端 Web（H5）：Vite 构建静态资源 → Nginx 托管，/api 反代到后端
-FROM node:20-alpine AS build
+FROM node:24-alpine AS build
 WORKDIR /app
-# 直接装固定版本 pnpm（比 corepack 少一层网络不确定性）
+# 国内网络：npm / pnpm 都走 npmmirror，否则 registry.npmjs.org 会慢到超时
+ENV NPM_CONFIG_REGISTRY=https://registry.npmmirror.com
+# pnpm 11 需要 Node >= 22.13（用了 node:sqlite），所以基础镜像用 24
 RUN npm install -g pnpm@11.8.0
 
 # 先只拷贝依赖清单，利用镜像层缓存

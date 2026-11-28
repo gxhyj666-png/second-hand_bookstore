@@ -55,49 +55,71 @@ case "$PKG" in
 esac
 
 # ---------------- 2. 安装 Docker ----------------
-if command -v docker >/dev/null 2>&1; then
-  log "Docker 已存在：$(docker --version)"
+# 注意：阿里云 Alibaba Cloud Linux 3 等镜像预装的是 podman-docker（假的 docker CLI），
+# `command -v docker` 会命中但它没有 dockerd、也没有 docker.service，
+# 所以这里必须同时判断「有没有 dockerd / docker.service」才算真的装了 Docker。
+has_real_docker() {
+  command -v dockerd >/dev/null 2>&1 \
+    && systemctl list-unit-files docker.service >/dev/null 2>&1 \
+    && systemctl list-unit-files | grep -q '^docker\.service'
+}
+
+if has_real_docker; then
+  log "Docker 已存在：$(docker --version 2>/dev/null || echo dockerd)"
 else
+  if command -v docker >/dev/null 2>&1; then
+    warn "检测到 $(docker --version 2>/dev/null | head -1)，但找不到 dockerd / docker.service —— 大概率是 podman-docker，接下来安装真正的 Docker"
+  fi
   log "安装 Docker"
   installed=0
 
-  # 路线 A：发行版自带仓库（EulerOS / openEuler / 部分镜像）
+  # 路线 A：官方 docker-ce 仓库（走阿里云镜像）；CentOS/RHEL/EulerOS/AliyunLinux 通用
   if [ "$PKG" = "dnf" ] || [ "$PKG" = "yum" ]; then
-    if $PKG install -y docker >/dev/null 2>&1 || $PKG install -y docker-engine >/dev/null 2>&1 \
-       || $PKG install -y docker-ce >/dev/null 2>&1; then
+    if [ ! -f /etc/yum.repos.d/docker-ce.repo ]; then
+      curl -fsSL https://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo \
+        -o /etc/yum.repos.d/docker-ce.repo 2>/dev/null || true
+      # alinux3 的 $releasever 是 3，docker-ce 仓库只有 el8/el9 目录，统一按 8 取
+      [ -f /etc/yum.repos.d/docker-ce.repo ] && sed -i 's/\$releasever/8/g' /etc/yum.repos.d/docker-ce.repo
+    fi
+    if $PKG install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin --allowerasing >/dev/null 2>&1; then
       installed=1
+    fi
+    # 路线 A2：发行版自带仓库（EulerOS / openEuler 等）
+    if [ "$installed" -eq 0 ]; then
+      $PKG install -y docker-engine >/dev/null 2>&1 && installed=1 || true
     fi
   fi
 
   # 路线 B：Ubuntu/Debian 自带仓库
   if [ "$installed" -eq 0 ] && [ "$PKG" = "apt" ]; then
-    if apt-get install -y docker.io >/dev/null 2>&1; then installed=1; fi
+    if apt-get install -y docker.io >/dev/null 2>&1 && command -v dockerd >/dev/null 2>&1; then installed=1; fi
   fi
 
-  # 路线 C：官方脚本 + 阿里云镜像（CentOS/RHEL/Ubuntu 通用）
+  # 路线 C：官方脚本 + 阿里云镜像（兜底）
   if [ "$installed" -eq 0 ]; then
     log "使用 get.docker.com（阿里云镜像）安装"
     curl -fsSL https://get.docker.com | sh -s -- --mirror Aliyun || true
-    command -v docker >/dev/null 2>&1 && installed=1
+    command -v dockerd >/dev/null 2>&1 && installed=1 || installed=0
   fi
 
-  [ "$installed" -eq 1 ] || die "Docker 安装失败：手动执行 'dnf install -y docker' 或 'apt install -y docker.io'，把报错发回来"
+  [ "$installed" -eq 1 ] || die "Docker 安装失败：手动执行 'dnf install -y docker-ce --allowerasing'，把报错发回来"
 fi
 
 systemctl enable --now docker
 systemctl is-active --quiet docker || die "docker 服务没能启动：journalctl -u docker -n 50"
-log "Docker 已运行：$(docker --version)"
+log "Docker 已运行：$(docker info --format '{{.ServerVersion}}' 2>/dev/null || echo ok)"
 
 # ---------------- 3. 镜像加速 ----------------
+# 说明：ustc / 163 / dockerproxy 这几个公共镜像在 2024–2026 陆续失效或限流，
+# 现在实测可用的是 daocloud 与 1ms.run（阿里云 ECS 上 401 挑战正常，客户端会自动换 token）。
 if [ ! -f /etc/docker/daemon.json ]; then
   log "写 /etc/docker/daemon.json（镜像加速 + 日志限额）"
   mkdir -p /etc/docker
   cat >/etc/docker/daemon.json <<'JSON'
 {
   "registry-mirrors": [
-    "https://docker.mirrors.ustc.edu.cn",
-    "https://hub-mirror.c.163.com",
-    "https://dockerproxy.com"
+    "https://docker.m.daocloud.io",
+    "https://docker.1ms.run"
   ],
   "log-driver": "json-file",
   "log-opts": { "max-size": "20m", "max-file": "3" }
