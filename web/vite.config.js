@@ -24,7 +24,8 @@ export default defineConfig({
     proxy: {
       // 后端真实端口是 8088，路由前缀 /v1，不带 /api
       '/api': {
-        target: 'http://localhost:8088',
+        // 默认打本机 8088；临时验证别的实例可用 VITE_API_TARGET 覆盖
+        target: process.env.VITE_API_TARGET || 'http://localhost:8088',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, '')
       }

@@ -91,6 +91,13 @@ public class ListingController {
         return ApiResponse.ok(Map.of("favored", favored));
     }
 
+    /** 重新上架（个人中心「我的发布」对已下架商品操作） */
+    @PostMapping("/listings/{id}/online")
+    public ApiResponse<Void> online(@PathVariable Long id) {
+        listingService.online(UserContext.requireUserId(), id);
+        return ApiResponse.ok();
+    }
+
     @GetMapping("/favorites")
     public ApiResponse<List<BizListing>> favorites() {
         return ApiResponse.ok(listingService.favorites(UserContext.requireUserId()));

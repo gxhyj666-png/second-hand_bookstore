@@ -180,6 +180,17 @@ public class ListingService {
         listingMapper.updateById(l);
     }
 
+    /** 重新上架：只有已下架（OFFLINE）的商品可以再上架。 */
+    @Transactional
+    public void online(Long userId, Long id) {
+        BizListing l = owned(userId, id);
+        if (!"OFFLINE".equals(l.getStatus())) {
+            throw BizException.conflict("只有在已下架的商品才能重新上架");
+        }
+        l.setStatus("ON_SALE");
+        listingMapper.updateById(l);
+    }
+
     private BizListing owned(Long userId, Long id) {
         BizListing l = listingMapper.selectById(id);
         if (l == null) {

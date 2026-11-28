@@ -24,14 +24,16 @@ public class AuthService {
     private final UserAuthMapper authMapper;
     private final JwtUtil jwtUtil;
     private final SmsService smsService;
+    private final NoticeService noticeService;
     private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
 
     public AuthService(SysUserMapper userMapper, UserAuthMapper authMapper, JwtUtil jwtUtil,
-                       SmsService smsService) {
+                       SmsService smsService, NoticeService noticeService) {
         this.userMapper = userMapper;
         this.authMapper = authMapper;
         this.jwtUtil = jwtUtil;
         this.smsService = smsService;
+        this.noticeService = noticeService;
     }
 
     @Transactional
@@ -209,6 +211,55 @@ public class AuthService {
         if (grade != null) user.setGrade(grade);
         if (dorm != null) user.setDorm(dorm);
         userMapper.updateById(user);
+        return user;
+    }
+
+    /**
+     * 换绑手机号：校验新号码的短信验证码（purpose=BIND_PHONE）后同时更新 sys_user.phone
+     * 与 user_auth 里 SMS 凭据的 identifier，保证下次能用新号码登录。
+     */
+    @Transactional
+    public SysUser changePhone(Long userId, String phone, String code) {
+        if (phone == null || !phone.matches("^1\\d{10}$")) {
+            throw BizException.badRequest("手机号格式不正确");
+        }
+        SysUser user = me(userId);
+        if (phone.equals(user.getPhone())) {
+            throw BizException.badRequest("新手机号与当前手机号相同");
+        }
+        long used = userMapper.selectCount(new LambdaQueryWrapper<SysUser>()
+                .eq(SysUser::getPhone, phone)
+                .ne(SysUser::getId, userId));
+        if (used > 0) {
+            throw BizException.conflict("该手机号已被其他账号绑定");
+        }
+        smsService.verify(phone, "BIND_PHONE", code);
+
+        String old = user.getPhone();
+        user.setPhone(phone);
+        userMapper.updateById(user);
+
+        UserAuth auth = authMapper.selectOne(new LambdaQueryWrapper<UserAuth>()
+                .eq(UserAuth::getUserId, userId)
+                .eq(UserAuth::getAuthType, "SMS")
+                .last("limit 1"));
+        if (auth != null) {
+            auth.setIdentifier(phone);
+            authMapper.updateById(auth);
+        } else {
+            UserAuth created = new UserAuth();
+            created.setUserId(userId);
+            created.setAuthType("SMS");
+            created.setIdentifier(phone);
+            created.setCredential("");
+            created.setVerified(1);
+            authMapper.insert(created);
+        }
+        String maskedOld = old == null || old.length() < 7 ? "" : old.substring(0, 3) + "****" + old.substring(7);
+        String maskedNew = phone.substring(0, 3) + "****" + phone.substring(7);
+        noticeService.push(userId, "SYSTEM", "手机号已更换",
+                "你的登录手机号已从 " + maskedOld + " 更换为 " + maskedNew + "。如不是你本人操作，请立即联系平台。",
+                "USER", userId);
         return user;
     }
 

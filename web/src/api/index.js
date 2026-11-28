@@ -4,7 +4,7 @@ import request from './request'
 export const authApi = {
   register: (data) => request.post('/v1/auth/register', data),
   login: (data) => request.post('/v1/auth/login', data), // { account, password }
-  smsCode: (data) => request.post('/v1/auth/sms-code', data), // { phone }
+  smsCode: (data) => request.post('/v1/auth/sms-code', data), // { phone, purpose? 'LOGIN' | 'BIND_PHONE' }
   smsLogin: (data) => request.post('/v1/auth/sms-login', data), // { phone, code }
   wechat: (code) => request.post('/v1/auth/wechat', { code }),
   me: () => request.get('/v1/auth/me'),
@@ -51,6 +51,7 @@ export const listingApi = {
   detail: (id) => request.get(`/v1/listings/${id}`),
   update: (id, data) => request.put(`/v1/listings/${id}`, data),
   offline: (id) => request.post(`/v1/listings/${id}/offline`),
+  online: (id) => request.post(`/v1/listings/${id}/online`),
   favorite: (id) => request.post(`/v1/listings/${id}/favorite`),
   favorites: () => request.get('/v1/favorites'),
   track: (data) => request.post('/v1/track', data),
@@ -109,6 +110,23 @@ export const socialApi = {
   userReviews: (userId, params) => request.get(`/v1/users/${userId}/reviews`, { params }),
   userCredit: (userId, params) => request.get(`/v1/users/${userId}/credit-logs`, { params }),
   myCredit: (params) => request.get('/v1/me/credit-logs', { params })
+}
+
+/** 个人中心：我的数据 / 我的评价 / 换绑手机号 */
+export const meApi = {
+  stats: () => request.get('/v1/my/stats'),
+  reviews: (params) => request.get('/v1/my/reviews', { params }), // { type: received|sent, page, size }
+  changePhone: (data) => request.put('/v1/me/phone', data) // { phone, code }
+}
+
+/** 公开用户主页（他人资料 + 在售 + 评价） */
+export const userApi = {
+  profile: (id) => request.get(`/v1/users/${id}/profile`)
+}
+
+/** 字典：学院 / 专业 / 年级 */
+export const metaApi = {
+  profileOptions: () => request.get('/v1/meta/profile-options')
 }
 
 /** 工单 */

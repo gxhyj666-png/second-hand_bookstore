@@ -46,7 +46,7 @@
         </section>
 
         <section class="card seller-card">
-          <div class="seller">
+          <div class="seller" :class="{ clickable: seller?.id }" @click="openSeller">
             <div class="avatar">
               <img
                 v-if="seller?.avatar && !avatarFailed"
@@ -69,6 +69,7 @@
               <strong>{{ seller?.creditScore ?? '--' }}</strong>
               <small>信用分</small>
             </div>
+            <van-icon v-if="seller?.id" name="arrow" class="seller-arrow" />
           </div>
         </section>
 
@@ -244,6 +245,10 @@ const isOwner = computed(
     Boolean(seller.value?.id) &&
     Number(seller.value.id) === Number(store.userId)
 )
+
+function openSeller() {
+  if (seller.value?.id) router.push(`/user/${seller.value.id}`)
+}
 
 const gallery = computed(() => {
   const raw = detail.value?.images
@@ -537,6 +542,13 @@ onMounted(load)
   display: flex;
   align-items: center;
   gap: 12px;
+}
+.seller.clickable {
+  cursor: pointer;
+}
+.seller-arrow {
+  color: var(--ink-3, #94a3b8);
+  font-size: 14px;
 }
 .avatar {
   width: 46px;

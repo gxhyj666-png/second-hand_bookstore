@@ -32,8 +32,8 @@ export const useUserStore = defineStore('user', {
       localStorage.setItem(USER_KEY, JSON.stringify(this.user))
       return this.user
     },
-    async sendSmsCode(phone) {
-      return authApi.smsCode({ phone })
+    async sendSmsCode(phone, purpose = 'LOGIN') {
+      return authApi.smsCode({ phone, purpose })
     },
     async smsLogin(phone, code) {
       const data = await authApi.smsLogin({ phone, code })

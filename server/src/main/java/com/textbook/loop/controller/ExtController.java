@@ -48,7 +48,10 @@ public class ExtController {
         this.merchantService = merchantService;
     }
 
-    public record SmsCodeReq(String phone) {
+    /**
+     * @param purpose 验证码用途：LOGIN（默认）/ BIND_PHONE（换绑手机号）
+     */
+    public record SmsCodeReq(String phone, String purpose) {
     }
 
     public record SmsLoginReq(String phone, String code) {
@@ -67,9 +70,12 @@ public class ExtController {
 
     @PostMapping("/auth/sms-code")
     public ApiResponse<Map<String, Object>> sendSmsCode(@RequestBody SmsCodeReq req) {
-        String code = smsService.send(req.phone(), "LOGIN");
+        String purpose = req.purpose() == null || req.purpose().isBlank()
+                ? "LOGIN" : req.purpose().trim().toUpperCase();
+        String code = smsService.send(req.phone(), purpose);
         Map<String, Object> map = new java.util.HashMap<>();
         map.put("sent", true);
+        map.put("purpose", purpose);
         map.put("provider", smsService.providerName());
         // 只有 mock 通道才回传验证码（方便演示与自动化）；接 Spug/真实短信后为 null
         map.put("devCode", code);

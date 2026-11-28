@@ -110,7 +110,7 @@ const loggingOut = ref(false)
 const defaultPointName = ref('')
 
 const QUICK = [
-  { text: '我的发布', path: '/search?mine=1', icon: 'notes-o' },
+  { text: '我的发布', path: '/my/listings', icon: 'notes-o' },
   { text: '我的收藏', path: '/favorites', icon: 'star-o' },
   { text: '私信', path: '/messages', icon: 'chat-o' },
   { text: '消息通知', path: '/notices', icon: 'volume-o', badge: true }
@@ -120,7 +120,8 @@ const MENU = computed(() => {
   const role = store.user?.role
   const list = [
     { text: '实名 / 学生认证', path: '/verify-center', icon: 'idcard' },
-    { text: '我的发布', path: '/search?mine=1', icon: 'notes-o' },
+    { text: '我的发布', path: '/my/listings', icon: 'notes-o' },
+    { text: '我的评价', path: '/my/reviews', icon: 'comment-o' },
     { text: '私信会话', path: '/messages', icon: 'chat-o' }
   ]
   if (role === 'OPERATOR') {
