@@ -55,6 +55,12 @@ public class AppProps {
     private String aliyunMarketIdcheckUrl = "https://verifytwo.market.alicloudapi.com/identity/verify_id_name";
     /** 实名核验调用超时（秒） */
     private int realnameTimeoutSeconds = 8;
+    /**
+     * 允许跨域访问的来源（逗号分隔）。默认只放行本地开发端口；
+     * 生产前端与后端同源，配空字符串即可完全不启用 CORS。
+     */
+    private String corsAllowedOrigins = "http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173,http://127.0.0.1:5174";
+
 
     public String getIdentityProvider() {
         return identityProvider;
@@ -78,6 +84,14 @@ public class AppProps {
 
     public void setAliyunMarketIdcheckUrl(String aliyunMarketIdcheckUrl) {
         this.aliyunMarketIdcheckUrl = aliyunMarketIdcheckUrl;
+    }
+
+    public String getCorsAllowedOrigins() {
+        return corsAllowedOrigins;
+    }
+
+    public void setCorsAllowedOrigins(String corsAllowedOrigins) {
+        this.corsAllowedOrigins = corsAllowedOrigins;
     }
 
     public int getRealnameTimeoutSeconds() {

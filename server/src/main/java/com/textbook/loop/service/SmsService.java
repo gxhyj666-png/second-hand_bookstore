@@ -2,6 +2,7 @@ package com.textbook.loop.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.textbook.loop.common.BizException;
+import com.textbook.loop.common.Mask;
 import com.textbook.loop.config.AppProps;
 import com.textbook.loop.domain.SysSmsCode;
 import com.textbook.loop.mapper.SysSmsCodeMapper;
@@ -66,7 +67,7 @@ public class SmsService {
         codeMapper.insert(row);
         int ttl = props.getSmsCodeTtlSeconds();
         provider.sendCode(phone, code, ttl);
-        log.info("验证码已创建：phone={} purpose={} provider={} ttl={}s", phone, purpose, provider.name(), ttl);
+        log.info("验证码已创建：phone={} purpose={} provider={} ttl={}s", Mask.phone(phone), purpose, provider.name(), ttl);
         return provider.mock() ? code : null;
     }
 

@@ -101,6 +101,8 @@ python tools/md2docx.py
 6. **双 DDL 不手写第二份**：`schema-h2.sql` 由 `tools/gen-h2-schema.js` 从 `db/schema.sql` 机械生成，改表只改后者再重跑生成器。
 7. **JWT 无状态、不用 Redis**：compose 里没有 redis 容器，别加回来（后端无 redis 依赖）。
 8. **前后端分离**：后端不做服务端渲染；Vite 开发期 `/api` 代理到 8088，生产 nginx 去前缀反代。
+9. **分页与跨域在框架层兜底**：`common/PageSizeFilter` 把任何 `size>50` 夹到 50（审计发现 31 个分页接口全无上限）；CORS 只认 `app.cors-allowed-origins` 白名单。两者都是"默认安全"，别在业务代码里再放开。
+10. **退款幂等靠条件更新**：`UPDATE biz_orders SET status='REFUNDING' WHERE id=? AND status='COMPLETED'`，影响行数 0 即视为重复申请（`40900`）——只靠先查状态挡不住并发。
 
 ## 8. 踩坑清单（都是实际踩过的，别再踩）
 

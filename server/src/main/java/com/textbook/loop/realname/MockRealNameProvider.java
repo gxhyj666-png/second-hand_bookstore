@@ -1,5 +1,6 @@
 package com.textbook.loop.realname;
 
+import com.textbook.loop.common.Mask;
 import com.textbook.loop.service.IdCardUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,7 +28,7 @@ public class MockRealNameProvider implements RealNameProvider {
     @Override
     public CheckResult check(String realName, String idNo) {
         boolean valid = IdCardUtil.isValidIdNo(idNo);
-        log.info("【实名模拟】{} / {}，校验位{}", realName, mask(idNo), valid ? "通过" : "不通过");
+        log.info("【实名模拟】{} / {}，校验位{}", Mask.name(realName), mask(idNo), valid ? "通过" : "不通过");
         return new CheckResult(valid,
                 valid ? "MOCK 通过：身份证号校验位与出生日期合法（未调用三方）" : "MOCK 不通过：身份证号校验位错误");
     }

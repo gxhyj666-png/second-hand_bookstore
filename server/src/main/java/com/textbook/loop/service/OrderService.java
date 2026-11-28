@@ -492,6 +492,16 @@ public class OrderService {
             throw BizException.badRequest("请填写退款原因");
         }
         String type = "REFUND_ONLY".equalsIgnoreCase(refundType) ? "REFUND_ONLY" : "RETURN";
+        // 幂等/并发守卫：用条件更新把 COMPLETED 抢成 REFUNDING，影响行数为 0 说明已经被别的请求改过。
+        // 否则两个并发请求都会通过上面的状态检查，各插一条退款单（审计发现的重复退款风险）。
+        int claimed = ordersMapper.update(null, new LambdaUpdateWrapper<BizOrders>()
+                .eq(BizOrders::getId, order.getId())
+                .eq(BizOrders::getStatus, "COMPLETED")
+                .set(BizOrders::getStatus, "REFUNDING")
+                .set(BizOrders::getRefundReason, reason.trim()));
+        if (claimed == 0) {
+            throw BizException.conflict("该订单已在售后处理中，请勿重复提交");
+        }
         BizRefund refund = new BizRefund();
         refund.setOrderId(order.getId());
         refund.setApplicantId(buyerId);
@@ -506,7 +516,6 @@ public class OrderService {
 
         order.setStatus("REFUNDING");
         order.setRefundReason(reason.trim());
-        ordersMapper.updateById(order);
         noticeService.push(order.getSellerId(), "REFUND", "REFUND_ONLY".equals(type) ? "买家申请仅退款" : "买家申请退货退款",
                 "订单 " + orderNo + " 买家申请" + ("REFUND_ONLY".equals(type) ? "仅退款" : "退货退款")
                         + "：" + reason, "ORDER", order.getId());
