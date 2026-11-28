@@ -2,6 +2,7 @@ package com.textbook.loop.controller;
 
 import com.textbook.loop.common.ApiResponse;
 import com.textbook.loop.security.UserContext;
+import com.textbook.loop.service.IsbnScanService;
 import com.textbook.loop.service.IsbnService;
 import com.textbook.loop.service.MerchantService;
 import com.textbook.loop.service.SmsService;
@@ -12,8 +13,10 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
@@ -32,14 +35,16 @@ public class ExtController {
     private final AuthService authService;
     private final IdentityService identityService;
     private final IsbnService isbnService;
+    private final IsbnScanService isbnScanService;
     private final MerchantService merchantService;
 
     public ExtController(SmsService smsService, AuthService authService, IdentityService identityService,
-                         IsbnService isbnService, MerchantService merchantService) {
+                         IsbnService isbnService, IsbnScanService isbnScanService, MerchantService merchantService) {
         this.smsService = smsService;
         this.authService = authService;
         this.identityService = identityService;
         this.isbnService = isbnService;
+        this.isbnScanService = isbnScanService;
         this.merchantService = merchantService;
     }
 
@@ -105,6 +110,12 @@ public class ExtController {
     @GetMapping("/isbn/{isbn}")
     public ApiResponse<Map<String, Object>> isbn(@PathVariable String isbn) {
         return ApiResponse.ok(isbnService.lookup(isbn));
+    }
+
+    /** 拍照识别书背 EAN-13 条码（本地 ZXing 解码，离线可用），识别后自动查书名。 */
+    @PostMapping("/isbn/scan")
+    public ApiResponse<Map<String, Object>> scanIsbn(@RequestParam("file") MultipartFile file) {
+        return ApiResponse.ok(isbnScanService.scan(file));
     }
 
     // ---------------- 商户端 ----------------

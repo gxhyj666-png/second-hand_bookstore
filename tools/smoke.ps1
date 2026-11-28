@@ -40,7 +40,17 @@ function Api([string]$method, [string]$path, $token, $body) {
 }
 
 function SmsLogin([string]$phone) {
-    $sent = Api 'POST' '/v1/auth/sms-code' $null @{ phone = $phone }
+    # 频控是「同一手机号 N 秒一次」，冒烟和 e2e 连着跑同号会撞 40900，这里重试
+    $sent = $null
+    for ($i = 0; $i -lt 5; $i++) {
+        try {
+            $sent = Api 'POST' '/v1/auth/sms-code' $null @{ phone = $phone }
+            break
+        } catch {
+            if ($_.Exception.Message -match '40900|频繁') { Start-Sleep -Milliseconds 1600 } else { throw }
+        }
+    }
+    if (-not $sent) { throw "短信验证码发送失败：$phone" }
     $view = Api 'POST' '/v1/auth/sms-login' $null @{ phone = $phone; code = $sent.devCode }
     return $view
 }
@@ -74,6 +84,14 @@ if ($list) { Write-Host ("     在售 {0} 件" -f $list.total) }
 $pick = $null
 if ($list -and $list.records) {
     $pick = $list.records | Where-Object { $_.sellerId -eq $seller.user.id } | Select-Object -First 1
+}
+if (-not $pick -and $sellerToken) {
+    # 种子商品可能已被上一次脚本跑成 SOLD，这里现发一件，保证脚本可重复执行
+    Write-Host '     [准备] 卖家在售商品为空，现发布一件用于冒烟' -ForegroundColor DarkGray
+    $pick = Api 'POST' '/v1/listings' $sellerToken @{
+        textbookId = 1; courseId = 1; price = 18.00; condition = 'LIKE_NEW'
+        description = '冒烟脚本自动补发的在售商品'; dorm = '3-201'; images = @()
+    }
 }
 Step '商品详情 + 价格指数' {
     if (-not $pick) { throw '没有可买商品' }

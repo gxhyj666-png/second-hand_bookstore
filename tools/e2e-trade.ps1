@@ -33,7 +33,17 @@ function Api([string]$method, [string]$path, $token, $body) {
 }
 
 function SmsLogin([string]$phone) {
-    $sent = Api 'POST' '/v1/auth/sms-code' $null @{ phone = $phone }
+    # 频控是「同一手机号 N 秒一次」，两个脚本连着跑同号会撞上 40900，这里重试几次
+    $sent = $null
+    for ($i = 0; $i -lt 5; $i++) {
+        try {
+            $sent = Api 'POST' '/v1/auth/sms-code' $null @{ phone = $phone }
+            break
+        } catch {
+            if ($_.Exception.Message -match '40900|频繁') { Start-Sleep -Milliseconds 1600 } else { throw }
+        }
+    }
+    if (-not $sent) { throw "短信验证码发送失败：$phone" }
     Start-Sleep -Milliseconds 1200
     return Api 'POST' '/v1/auth/sms-login' $null @{ phone = $phone; code = $sent.devCode }
 }
@@ -148,13 +158,24 @@ Step '卖家看到会话并回复' {
 
 # ---- 场景四：商户入驻 → 平台审核 → 批量上架 ----
 $apply = Step '用户提交商户入驻申请' {
-    Api 'POST' '/v1/merchant/apply' $buyerToken @{ shopName = 'E2E 测试书店'; licenseUrl = 'demo/license.jpg'; contact = '13800000002' }
+    try {
+        Api 'POST' '/v1/merchant/apply' $buyerToken @{ shopName = 'E2E 测试书店'; licenseUrl = 'demo/license.jpg'; contact = '13800000002' } | Out-Null
+        Write-Host '     已提交，等待平台审核'
+    } catch {
+        # 脚本可重复跑：该账号可能已经是商户，这不算失败
+        if ($_.Exception.Message -match '40900|已入驻') { Write-Host '     该账号已是商户，跳过入驻申请' }
+        else { throw }
+    }
 } | Out-Null
 Step '平台审核通过商户' {
     $pend = Api 'GET' '/v1/admin/merchants?status=PENDING' $adminToken $null
     $rows = if ($pend.records) { $pend.records } else { $pend }
     $target = $rows | Where-Object { $_.status -eq 'PENDING' } | Select-Object -First 1
-    if (-not $target) { throw '待审列表里没有刚提交的商户' }
+    if (-not $target) {
+        $mine = Api 'GET' '/v1/merchant/my' $buyerToken $null
+        if ($mine -and $mine.status -eq 'APPROVED') { Write-Host '     商户已是 APPROVED，跳过审核'; return }
+        throw '待审列表里没有刚提交的商户'
+    }
     Api 'POST' "/v1/admin/merchants/$($target.id)/review" $adminToken @{ approved = $true; reason = '资质齐全' } | Out-Null
 } | Out-Null
 Step '商户批量上架 2 本书' {

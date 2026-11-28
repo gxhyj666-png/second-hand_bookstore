@@ -23,7 +23,13 @@ export const verifyApi = {
 
 /** ISBN 查询 */
 export const isbnApi = {
-  lookup: (isbn) => request.get(`/v1/isbn/${encodeURIComponent(isbn)}`)
+  lookup: (isbn) => request.get(`/v1/isbn/${encodeURIComponent(isbn)}`),
+  /** 拍照识别书背 EAN-13 条码（后端本地 ZXing 解码 + 第三方图书库补书名） */
+  scan: (file) => {
+    const form = new FormData()
+    form.append('file', file)
+    return request.post('/v1/isbn/scan', form, { timeout: 40000 })
+  }
 }
 
 /** 课程与教材 */

@@ -26,9 +26,20 @@
           <van-button size="small" round type="primary" :loading="isbnLoading" @click="lookupIsbn">
             查询
           </van-button>
+          <van-button size="small" round plain type="primary" :loading="scanLoading" @click="pickBarcode">
+            扫码
+          </van-button>
+          <input
+            ref="scanInput"
+            type="file"
+            accept="image/*"
+            capture="environment"
+            class="scan-input"
+            @change="onScanFile"
+          />
         </div>
         <p class="muted small isbn-tip">
-          开发期没有扫码组件，可直接输入书背条形码下方的 ISBN；未收录时可手动选择教材。
+          点「扫码」拍书背条形码自动带出书名（本地识别，离线可用）；也可以手动输入 ISBN。
         </p>
       </section>
 
@@ -224,6 +235,8 @@ const pi = ref(null)
 
 const isbn = ref('')
 const isbnLoading = ref(false)
+const scanLoading = ref(false)
+const scanInput = ref(null)
 
 const form = reactive({
   price: '',
@@ -293,24 +306,58 @@ async function lookupIsbn() {
       openBookPopup()
       return
     }
-    // 兼容 { found, textbook } 与扁平字段两种返回
-    const t = res.textbook || res
-    const id = res.textbookId ?? t.id
-    book.value = {
-      id,
-      title: res.title ?? t.title,
-      author: res.author ?? t.author,
-      publisher: res.publisher ?? t.publisher,
-      edition: res.edition ?? t.edition,
-      price: res.price ?? t.price
-    }
-    if (!form.price && book.value.price) form.price = (Number(book.value.price) * 0.4).toFixed(2)
-    showToast(`已识别：${book.value.title || '教材'}`)
-    if (id) loadPriceIndex(id)
+    applyBook(res)
+
   } catch {
     // 请求层已经提示
   } finally {
     isbnLoading.value = false
+  }
+}
+
+/** 把 /v1/isbn/{isbn} 或 /v1/isbn/scan 的返回灌进表单，供手输与扫码共用 */
+function applyBook(res) {
+  if (!res?.found) {
+    showToast(res?.message || '没有查到这本书，请手动选择或填写')
+    openBookPopup()
+    return
+  }
+  // 兼容 { found, textbook } 与扁平字段两种返回
+  const t = res.textbook || res
+  const id = res.textbookId ?? t.id
+  book.value = {
+    id,
+    title: res.title ?? t.title,
+    author: res.author ?? t.author,
+    publisher: res.publisher ?? t.publisher,
+    edition: res.edition ?? t.edition,
+    price: res.price ?? t.price
+  }
+  if (res.coverUrl) form.coverUrl = res.coverUrl
+  if (!form.price && book.value.price) form.price = (Number(book.value.price) * 0.4).toFixed(2)
+  showToast(`已识别：${book.value.title || '教材'}`)
+  if (id) loadPriceIndex(id)
+}
+
+/** 拍照/选图识别书背条码 */
+function pickBarcode() {
+  scanInput.value?.click()
+}
+
+async function onScanFile(event) {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+  if (!file || scanLoading.value) return
+  if (file.size > 8 * 1024 * 1024) return showToast('图片不能超过 8MB')
+  scanLoading.value = true
+  try {
+    const res = await isbnApi.scan(file)
+    isbn.value = res.isbn || ''
+    applyBook(res)
+  } catch {
+    // 请求层已提示
+  } finally {
+    scanLoading.value = false
   }
 }
 
@@ -472,6 +519,10 @@ onMounted(() => {
   border-radius: 8px;
   padding: 6px 10px;
 }
+.scan-input {
+  display: none;
+}
+
 .isbn-tip {
   margin: 8px 0 0;
   line-height: 1.5;

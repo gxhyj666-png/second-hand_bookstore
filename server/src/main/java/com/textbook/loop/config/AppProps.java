@@ -43,6 +43,10 @@ public class AppProps {
     private int spugTimeoutSeconds = 8;
     /** 开发模式：实名/学生/人脸走本地模拟通过；生产置 false 接三方实人认证 */
     private boolean mockIdentity = true;
+    /** ISBN 元数据通道：mock（只查本地教材库）/ market（阿里云云市场 ISBN 标准书号查询） */
+    private String isbnProvider = "mock";
+    /** 阿里云云市场 ISBN 查询接口地址 */
+    private String aliyunMarketIsbnUrl = "https://lhisbnshcx.market.alicloudapi.com/isbn/query";
     /** 实名核验通道：mock（仅 GB11643 本地校验）/ aliyun（阿里云云市场身份证二要素） */
     private String identityProvider = "mock";
     /** 阿里云云市场二要素 AppCode（凭证，只放服务端，勿进前端/仓库） */
@@ -155,6 +159,22 @@ public class AppProps {
 
     public void setMockIdentity(boolean mockIdentity) {
         this.mockIdentity = mockIdentity;
+    }
+
+    public String getIsbnProvider() {
+        return isbnProvider;
+    }
+
+    public void setIsbnProvider(String isbnProvider) {
+        this.isbnProvider = isbnProvider;
+    }
+
+    public String getAliyunMarketIsbnUrl() {
+        return aliyunMarketIsbnUrl;
+    }
+
+    public void setAliyunMarketIsbnUrl(String aliyunMarketIsbnUrl) {
+        this.aliyunMarketIsbnUrl = aliyunMarketIsbnUrl;
     }
 
     public String getJwtSecret() {
