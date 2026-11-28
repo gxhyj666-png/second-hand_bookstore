@@ -32,7 +32,7 @@ server/                 后端（src/main/java/com/textbook/loop/）
   controller/ service/ domain/ mapper/ security/ config/ sms/ bootstrap/ common/
   src/main/resources/   application*.yml、schema-h2.sql（生成物，勿手改）
 web/ admin/ miniapp/    三个前端
-db/schema.sql           MySQL 8 正式 DDL（37 表）；schema-h2.sql 由 tools/gen-h2-schema.js 生成
+db/schema.sql           MySQL 8 正式 DDL（38 表）；schema-h2.sql 由 tools/gen-h2-schema.js 生成
 tools/                  脚本：setup-dev / start-backend / reset-dev / smoke / e2e-trade / gen-entities / gen-h2-schema / md2docx
 docs/                   01–08 设计文档，09 状态交接，10 新会话提示；docs/word/ 是 Word 版
 deploy/                 ECS 部署脚本与手册
@@ -53,7 +53,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\reset-dev.ps1
 
 # 验证（后端必须在 8088 跑着）
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\smoke.ps1        # 17 项主链路
-powershell -NoProfile -ExecutionPolicy Bypass -File tools\e2e-trade.ps1    # 21 项纠纷/私信/商户链路
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\e2e-trade.ps1    # 23 项纠纷/私信/商户链路
 
 # 构建
 .\mvnw.cmd -q -DskipTests package          # 产物 server/target/textbook-loop-server-0.1.0.jar
@@ -120,29 +120,29 @@ python tools/md2docx.py
 
 ## 9. 当前状态（详见 docs/09）
 
-- **已交付**：后端 37 表 / 120 个 Java 文件、web 27 个视图、admin 页面、`docs/01–08`、Word 版、部署脚本与 ECS 手册、Spug 真实短信、一键环境配置与 IDEA `.run` 配置。
-- **验证基线**：`tools/smoke.ps1` 17/17、`tools/e2e-trade.ps1` 21/21；后端编译与两端 `pnpm build` 均通过。
+- **已交付**：后端 38 表 / 146 个 Java 文件 / 133 个接口、web 35 个视图、admin 页面、`docs/01–13`、Word 版、部署脚本与 ECS 手册、Spug 真实短信、阿里云二要素实名、ISBN 双通道、一键环境配置与 IDEA `.run` 配置。
+- **验证基线**：`tools/smoke.ps1` 17/17、`tools/e2e-trade.ps1` 23/23；后端编译与两端 `pnpm build` 均通过。
 - **未做**：287 份问卷回收、部署到阿里云 ECS 8.149.233.30 后的线上验证、图片上 OSS、小程序口径收口、微信支付（按 m04487 搁置）。系统测试章节（`docs/12`，53 条用例）、并发压测（`tools/perf`，实测 TPS 1057–1159、20 并发抢单成功 1 单）、四张论文图（`docs/13` + `docs/img`）、图片落盘（`FileController`）、admin 关 mock 均已完成（2026-11-28）。
 
 ## 10. 角色与身份口径（2026-11-28 作者确认，改之前先看）
 
-- **只有一个"用户"实体**（`sys_user`）。团长 / 商户 / 运营**不是另一种人**，而是普通用户身上可叠加的附加身份：
+- **只有一个"用户"实体**（`sys_user`），身份分两层：**主身份** `sys_user.role`（`STUDENT / LEADER / MERCHANT / OPERATOR / ADMIN`）+ **附加身份** `sys_user_role`（多对一，一用户可叠加多个）。JWT 里 `role` 是主身份、`roles` 是完整身份串（如 `MERCHANT,OPERATOR`）。
+  - **学生 / 商户**：**两类账号，登录页切换**（「学生登录」/「商户登录」），登录方式相同（手机号验证码或账号密码）。商户**不再由进阶码产生**——在商户入口首次短信登录自动建号（`role=MERCHANT`），填店铺资料 → 运营审核通过（`biz_merchant.status=APPROVED`）后开店。学生账号提交入驻会被 `40300` 拒绝；商户账号从学生入口登录会被 `40900` 拒绝，反之亦然。
+  - **运营**：**唯一靠进阶码**的身份。学生账号或商户账号都能在「我的 → 进阶运营」兑换运营码（`OPER2026` / `OPER8888` 或管理员生成的码），成功后写入 `sys_user_role`，**主身份不变**——商户进阶后店铺与商户工作台全部保留，只多一个运营身份与运营入口。
   - **团长**：普通用户可添加的身份，由**运营或平台按需赋予**。当前实现里团长=发起接龙的人（`biz_group_buy.leader_id`），`sys_user.role='LEADER'` 只是标识，还没有"运营赋权"接口（要做属于新功能，先问）。
-  - **商户**：由用户**进阶而来**（进阶码 `MERCHANT` + 入驻审核 `biz_merchant.status=APPROVED`），本质仍是用户，**只比普通用户多一个商户专属模块**（工作台 / 商品管理 / 商户订单 / 结算）；账号、信用分、订单历史都不变。
-  - **运营**：进阶码 `OPERATOR` 或管理员指定；**管理员**是平台侧账号。
-- **权限按能力判定，不按角色硬切**：交易看实名 + 学生认证（`sys_verify_record`）与信用分；商户模块看 `merchantId`（入驻审核通过才有）；运营端看 `requireOperator()`。**不要写"必须是 STUDENT 才能买/卖"这类判断**，也不要为一个用户建多套账号。
-- `sys_user.role` 取值：`STUDENT / LEADER / MERCHANT / OPERATOR / ADMIN`，它只是"当前最主要的那重身份"的标签，不代表能力全集。
+- **权限按能力判定，不按角色硬切**：交易看实名 + 学生认证（`sys_verify_record`）与信用分；商户模块看 `merchantId`（入驻审核通过才有）；运营端看 `UserContext.requireOperator()`（等价于 `hasRole("OPERATOR")`，读 `sys_user_role`）。**不要写"必须是 STUDENT 才能买/卖"这类判断**，也不要为一个用户建多套账号。
+- `sys_user.role` 只是"最主要那重身份"的标签，不代表能力全集；判断"能不能"一律用 `LoginUser.hasRole(...)` / `UserRoleService.has(...)`。
 
 ### 范围冻结（等作者指令再动）
 
 - `miniapp/`：**保留、不开发、不删除**；论文口径写"旧流程参考实现、非主交付"。
 - **接龙拼单**：保留，**暂不优化**（不做新功能、不改交互），等指令。
-- **进阶码**：保留（`MERCHANT` / `OPERATOR` 两条线，运营端可批量生成）。
+- **进阶码**：保留，但**只用于运营身份**（`OPERATOR` 单线，运营端/管理员批量生成；商户码已停用）。
 
 ## 11. 协作规则（给 AI）
 
 - **先推送，再写代码**（硬规则，2026-11-28 起）：每次动手前先 `git status` 与 `git log --oneline origin/main..HEAD`；有未提交改动先提交，有未推送提交先 `git push`，**本地干净了才开始写**。收尾必须"提交 + 推送"成对完成，不留本地领先远端的提交。
-- **严格以任务书为边界**：开发范围以 `docs/11-任务书与选题表对照验证.md` 里那份任务书为准——**11 个功能模块 / 5 类角色（学生·团长·商户·运营·管理员）/ 37 张表**。任务书之外的新模块（支付渠道、社交动态、优惠券、竞价推广位、积分商城之类）**先问再决定**，不许"顺手加功能"。
+- **严格以任务书为边界**：开发范围以 `docs/11-任务书与选题表对照验证.md` 里那份任务书为准——**11 个功能模块 / 5 类角色（学生·团长·商户·运营·管理员）/ 任务书 37 张表（实现含 `sys_user_role` 共 38 张）**。任务书之外的新模块（支付渠道、社交动态、优惠券、竞价推广位、积分商城之类）**先问再决定**，不许"顺手加功能"。
 - **先读后写**：动任何接口前先看对应 `controller` + `service`，别按记忆猜字段名（实体是生成物，以 `db/schema.sql` 为准）。
 - **改表流程**：`db/schema.sql` → `node tools/gen-entities.js` → `node tools/gen-h2-schema.js` → 删本地 `data/` → 重启。
 - **验证要求**：改后端必须 `.\mvnw.cmd -q -DskipTests compile` 通过；改接口必须跑 `smoke.ps1` / `e2e-trade.ps1`；改前端必须 `pnpm build` 通过。**不许说"应该能跑"**。

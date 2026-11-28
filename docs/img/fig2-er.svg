@@ -16,8 +16,8 @@
   </defs>
 
   <rect x="0" y="0" width="1130" height="960" fill="#ffffff"/>
-  <text x="560" y="34" text-anchor="middle" font-size="19" font-weight="bold" fill="#0f172a">同窗书 · 核心数据表关系图（37 张表中的 11 张主表）</text>
-  <text x="560" y="56" text-anchor="middle" class="cap">红 = 主键；蓝 = 外键；虚线框内的 sys_* 为基础数据，biz_* 为交易数据；完整 37 张表的字段见 db/schema.sql 与 docs/02</text>
+  <text x="560" y="34" text-anchor="middle" font-size="19" font-weight="bold" fill="#0f172a">同窗书 · 核心数据表关系图（38 张表中的 11 张主表）</text>
+  <text x="560" y="56" text-anchor="middle" class="cap">红 = 主键；蓝 = 外键；虚线框内的 sys_* 为基础数据，biz_* 为交易数据；完整 38 张表的字段见 db/schema.sql 与 docs/02</text>
 
   <!-- sys_school -->
   <rect x="40" y="90" width="250" height="91" rx="10" fill="#eef6ff" stroke="#60a5fa" stroke-width="1.4"/>

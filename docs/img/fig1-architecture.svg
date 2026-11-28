@@ -51,16 +51,16 @@
 
   <!-- 后端容器 -->
   <rect x="40" y="272" width="700" height="452" class="layer"/>
-  <text x="56" y="294" class="h">服务端 server/（Spring Boot 3.2.5 · JDK 17 · 端口 8088 · 37 表 / 118 接口）</text>
+  <text x="56" y="294" class="h">服务端 server/（Spring Boot 3.2.5 · JDK 17 · 端口 8088 · 38 表 / 133 接口）</text>
 
   <rect x="62" y="308" width="654" height="74" class="box"/>
-  <text x="76" y="330" class="t">Controller 层（13 个）</text>
+  <text x="76" y="330" class="t">Controller 层（17 个）</text>
   <text x="76" y="352" class="s">AuthInterceptor 只解析不拒绝；UserContext 判定登录；游客可读 GET → currentUserIdOrNull</text>
   <text x="76" y="371" class="xs">Auth / Listing / Order / Review / Course / Textbook / Pickup / Admin / Notice / Ext / File / Merchant / Operator</text>
 
   <rect x="62" y="396" width="654" height="88" class="box"/>
-  <text x="76" y="418" class="t">Service 层（17 个 · 事务边界）</text>
-  <text x="76" y="440" class="xs">OrderService（三态/核销/约见/退款仲裁）· IdentityService · MerchantService · IsbnService · SocialService</text>
+  <text x="76" y="418" class="t">Service 层（21 个 · 事务边界）</text>
+  <text x="76" y="440" class="xs">OrderService（三态/核销/约见/退款仲裁）· AuthService · UserRoleService · MeService · MerchantService · IsbnService</text>
   <text x="76" y="459" class="xs">防超卖：UPDATE … WHERE status='ON_SALE'　幂等：sys_idempotent(request_id, scene)　关单：@Scheduled 60s</text>
   <text x="76" y="477" class="xs">结算 biz_settlement(DONE)　信用 biz_credit_log(DEAL_DONE / REVIEW_GOOD / NO_SHOW −5)</text>
 
@@ -71,7 +71,7 @@
   <text x="76" y="579" class="xs">FileController：data/uploads/yyyyMM（可切 OSS）　BizException → 统一错误码</text>
 
   <rect x="62" y="598" width="654" height="60" class="box"/>
-  <text x="76" y="620" class="t">Mapper 层（37 个 · MyBatis-Plus 3.5.5）</text>
+  <text x="76" y="620" class="t">Mapper 层（38 个 · MyBatis-Plus 3.5.5）</text>
   <text x="76" y="642" class="s">实体由 db/schema.sql 机械生成；@TableLogic 逻辑删除；schema-h2.sql 由生成器从 MySQL DDL 转换</text>
 
   <path class="line" d="M389,382 L389,396"/>
@@ -112,6 +112,6 @@
   <rect x="40" y="740" width="960" height="86" class="db"/>
   <text x="56" y="762" class="t">存储层</text>
   <text x="60" y="784" class="s">MySQL 8.0（线上）　│　H2 2.2.224 MODE=MySQL（开发/演示，文件库 data/textbook_loop）</text>
-  <text x="60" y="806" class="xs">37 张表：sys_*（学校/用户/课程/教材/短信/认证/商户/幂等/进阶码）+ biz_*（商品/订单/约见/退款/爽约/会话/结算/信用）+ stat_daily</text>
+  <text x="60" y="806" class="xs">38 张表：sys_*（学校/用户/多身份/课程/教材/短信/认证/商户/幂等/进阶码）+ biz_*（商品/订单/约见/退款/爽约/会话/结算/信用）+ stat_daily</text>
   <path class="line" d="M389,724 L389,740"/>
 </svg>
