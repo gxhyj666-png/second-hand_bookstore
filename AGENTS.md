@@ -32,7 +32,7 @@ server/                 后端（src/main/java/com/textbook/loop/）
   controller/ service/ domain/ mapper/ security/ config/ sms/ bootstrap/ common/
   src/main/resources/   application*.yml、schema-h2.sql（生成物，勿手改）
 web/ admin/ miniapp/    三个前端
-db/schema.sql           MySQL 8 正式 DDL（33 表）；schema-h2.sql 由 tools/gen-h2-schema.js 生成
+db/schema.sql           MySQL 8 正式 DDL（37 表）；schema-h2.sql 由 tools/gen-h2-schema.js 生成
 tools/                  脚本：setup-dev / start-backend / reset-dev / smoke / e2e-trade / gen-entities / gen-h2-schema / md2docx
 docs/                   01–08 设计文档，09 状态交接，10 新会话提示；docs/word/ 是 Word 版
 deploy/                 ECS 部署脚本与手册
@@ -118,9 +118,9 @@ python tools/md2docx.py
 
 ## 9. 当前状态（详见 docs/09）
 
-- **已交付**：后端 33 表 / 116 个 Java 文件、web 27 个视图、admin 页面、`docs/01–08`、Word 版、部署脚本与 ECS 手册、Spug 真实短信、一键环境配置与 IDEA `.run` 配置。
+- **已交付**：后端 37 表 / 120 个 Java 文件、web 27 个视图、admin 页面、`docs/01–08`、Word 版、部署脚本与 ECS 手册、Spug 真实短信、一键环境配置与 IDEA `.run` 配置。
 - **验证基线**：`tools/smoke.ps1` 17/17、`tools/e2e-trade.ps1` 21/21；后端编译与两端 `pnpm build` 均通过。
-- **未做**：287 份问卷回收、系统测试章节、JMeter 并发抢单实验、ER/架构/状态机/时序图、图片真落盘（OSS）、admin 关 mock 演示、小程序口径收口、部署到阿里云 ECS 8.149.233.30 后的线上验证。
+- **未做**：287 份问卷回收、部署到阿里云 ECS 8.149.233.30 后的线上验证、图片上 OSS、小程序口径收口、微信支付（按 m04487 搁置）。系统测试章节（`docs/12`，53 条用例）、并发压测（`tools/perf`，实测 TPS 1057–1159、20 并发抢单成功 1 单）、四张论文图（`docs/13` + `docs/img`）、图片落盘（`FileController`）、admin 关 mock 均已完成（2026-11-28）。
 
 ## 10. 协作规则（给 AI）
 

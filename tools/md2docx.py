@@ -153,6 +153,30 @@ def convert(md_path: Path, out_dir: Path):
             add_code(doc, block)
             continue
 
+        # 图片：![图注](相对路径)
+        m = re.match(r"^!\[(.*?)\]\((.+?)\)$", stripped)
+        if m:
+            alt, src = m.group(1), m.group(2)
+            img = (md_path.parent / src)
+            if img.exists():
+                p = doc.add_paragraph()
+                p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                p.paragraph_format.first_line_indent = Cm(0)
+                p.paragraph_format.space_before = Pt(6)
+                p.add_run().add_picture(str(img), width=Cm(15.5))
+                if alt:
+                    cap = doc.add_paragraph()
+                    cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    cap.paragraph_format.first_line_indent = Cm(0)
+                    cap.paragraph_format.space_after = Pt(10)
+                    r = cap.add_run(alt)
+                    set_run_font(r, size=10.5)
+            else:
+                p = doc.add_paragraph()
+                add_inline(p, f"[缺少图片：{src}]")
+            i += 1
+            continue
+
         # 表格
         if stripped.startswith("|") and i + 1 < len(lines) and re.match(r"^\|[\s:|-]+\|$", lines[i + 1].strip()):
             block = []

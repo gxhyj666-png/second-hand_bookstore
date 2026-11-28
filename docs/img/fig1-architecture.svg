@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1040" height="876" viewBox="0 0 1040 876" font-family="Microsoft YaHei, PingFang SC, sans-serif">
+  <defs>
+    <marker id="arr" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 z" fill="#4b5563"/>
+    </marker>
+    <marker id="arr2" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 z" fill="#2563eb"/>
+    </marker>
+    <style>
+      .t { font-size: 15px; fill: #111827; }
+      .s { font-size: 12.5px; fill: #374151; }
+      .xs { font-size: 11.5px; fill: #4b5563; }
+      .h { font-size: 13px; font-weight: bold; fill: #1f2937; }
+      .box { fill: #ffffff; stroke: #94a3b8; stroke-width: 1.4; rx: 10; }
+      .layer { fill: #f8fafc; stroke: #cbd5e1; stroke-width: 1.4; rx: 12; }
+      .ext { fill: #fff7ed; stroke: #fdba74; stroke-width: 1.4; rx: 10; }
+      .db { fill: #eef2ff; stroke: #818cf8; stroke-width: 1.4; rx: 12; }
+      .line { stroke: #4b5563; stroke-width: 1.5; fill: none; marker-end: url(#arr); }
+      .line2 { stroke: #2563eb; stroke-width: 1.5; fill: none; marker-end: url(#arr2); stroke-dasharray: 5 4; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1040" height="876" fill="#ffffff"/>
+  <text x="520" y="34" text-anchor="middle" font-size="19" font-weight="bold" fill="#0f172a">同窗书 · 系统总体架构（前后端分离的单体应用）</text>
+  <text x="520" y="56" text-anchor="middle" class="xs">接入层（3 个前端）→ Nginx/Vite 代理 → Spring Boot 分层后端 → 存储；第三方能力全部 provider 化，可切 mock</text>
+
+  <!-- 接入层 -->
+  <rect x="40" y="74" width="960" height="92" class="layer"/>
+  <text x="56" y="94" class="h">接入层</text>
+  <rect x="60" y="102" width="270" height="54" class="box"/>
+  <text x="72" y="124" class="t">用户端 web/</text>
+  <text x="72" y="144" class="xs">Vue3.5 + Vite5 + Vant4（H5 / Capacitor→APK）</text>
+  <rect x="352" y="102" width="270" height="54" class="box"/>
+  <text x="364" y="124" class="t">平台端 admin/</text>
+  <text x="364" y="144" class="xs">Vue3.4 + Element Plus + ECharts（审核/仲裁/看板）</text>
+  <rect x="644" y="102" width="330" height="54" class="box"/>
+  <text x="656" y="124" class="t">小程序 miniapp/（参考实现，非主交付）</text>
+  <text x="656" y="144" class="xs">原生 WXML，仅覆盖浏览与下单早期流程</text>
+
+  <!-- 代理层 -->
+  <rect x="40" y="186" width="960" height="66" class="layer"/>
+  <text x="56" y="206" class="h">接入代理</text>
+  <text x="60" y="232" class="s">开发期：Vite devServer proxy  /api → http://127.0.0.1:8088（rewrite 去前缀）　│　生产：Nginx 托管 dist 静态资源 + proxy_pass 到 server:8088</text>
+  <text x="60" y="250" class="xs">统一 JSON 契约 {code,message,data}；Authorization: Bearer &lt;JWT&gt;；错误码 40000/40100/40300/40400/40900</text>
+
+  <path class="line" d="M195,166 L195,186"/>
+  <path class="line" d="M487,166 L487,186"/>
+  <path class="line" d="M809,166 L809,186"/>
+  <path class="line" d="M150,252 L150,272"/>
+
+  <!-- 后端容器 -->
+  <rect x="40" y="272" width="700" height="452" class="layer"/>
+  <text x="56" y="294" class="h">服务端 server/（Spring Boot 3.2.5 · JDK 17 · 端口 8088 · 37 表 / 118 接口）</text>
+
+  <rect x="62" y="308" width="654" height="74" class="box"/>
+  <text x="76" y="330" class="t">Controller 层（13 个）</text>
+  <text x="76" y="352" class="s">AuthInterceptor 只解析不拒绝；UserContext 判定登录；游客可读 GET → currentUserIdOrNull</text>
+  <text x="76" y="371" class="xs">Auth / Listing / Order / Review / Course / Textbook / Pickup / Admin / Notice / Ext / File / Merchant / Operator</text>
+
+  <rect x="62" y="396" width="654" height="88" class="box"/>
+  <text x="76" y="418" class="t">Service 层（17 个 · 事务边界）</text>
+  <text x="76" y="440" class="xs">OrderService（三态/核销/约见/退款仲裁）· IdentityService · MerchantService · IsbnService · SocialService</text>
+  <text x="76" y="459" class="xs">防超卖：UPDATE … WHERE status='ON_SALE'　幂等：sys_idempotent(request_id, scene)　关单：@Scheduled 60s</text>
+  <text x="76" y="477" class="xs">结算 biz_settlement(DONE)　信用 biz_credit_log(DEAL_DONE / REVIEW_GOOD / NO_SHOW −5)</text>
+
+  <rect x="62" y="498" width="654" height="86" class="box"/>
+  <text x="76" y="520" class="t">能力层 · Provider 抽象（配置开关，mock ⇄ 真实）</text>
+  <text x="76" y="542" class="s">sms/ SmsProvider：mock ｜ spug　　realname/ RealNameProvider：mock（本地校验）｜ 阿里云二要素</text>
+  <text x="76" y="561" class="xs">isbn/ IsbnMetaProvider：mock ｜ 云市场图书查询　　IsbnScanService：本地 ZXing 解 EAN-13（离线）</text>
+  <text x="76" y="579" class="xs">FileController：data/uploads/yyyyMM（可切 OSS）　BizException → 统一错误码</text>
+
+  <rect x="62" y="598" width="654" height="60" class="box"/>
+  <text x="76" y="620" class="t">Mapper 层（37 个 · MyBatis-Plus 3.5.5）</text>
+  <text x="76" y="642" class="s">实体由 db/schema.sql 机械生成；@TableLogic 逻辑删除；schema-h2.sql 由生成器从 MySQL DDL 转换</text>
+
+  <path class="line" d="M389,382 L389,396"/>
+  <path class="line" d="M389,484 L389,498"/>
+  <path class="line" d="M389,584 L389,598"/>
+  <path class="line" d="M389,658 L389,700"/>
+
+  <!-- 第三方 -->
+  <rect x="764" y="272" width="236" height="452" class="layer"/>
+  <text x="778" y="294" class="h">外部能力（可替换）</text>
+
+  <rect x="778" y="308" width="208" height="76" class="ext"/>
+  <text x="790" y="330" class="t">Spug 推送助手</text>
+  <text x="790" y="350" class="xs">POST /sms/&lt;模板编码&gt;</text>
+  <text x="790" y="368" class="xs">真机已打通（实名 + IP 白名单）</text>
+
+  <rect x="778" y="398" width="208" height="92" class="ext"/>
+  <text x="790" y="420" class="t">阿里云云市场</text>
+  <text x="790" y="438" class="xs">二要素核验 verify_id_name</text>
+  <text x="790" y="455" class="xs">图书查询 isbn/query（form 提交）</text>
+  <text x="790" y="472" class="xs">AppCode 账号级 · 试用额度</text>
+
+  <rect x="778" y="504" width="208" height="76" class="ext"/>
+  <text x="790" y="526" class="t">本地 ZXing 3.5.3</text>
+  <text x="790" y="546" class="xs">EAN-13 / EAN-8 / UPC-A / CODE128</text>
+  <text x="790" y="563" class="xs">离线解码，不依赖网络</text>
+
+  <rect x="778" y="594" width="208" height="64" class="ext"/>
+  <text x="790" y="616" class="t">对象存储（预留）</text>
+  <text x="790" y="636" class="xs">本地 uploads → 阿里云 OSS</text>
+
+  <path class="line2" d="M716,541 L778,541"/>
+  <path class="line2" d="M716,346 L778,346"/>
+  <path class="line2" d="M716,444 L778,444"/>
+  <path class="line2" d="M716,626 L778,626"/>
+
+  <!-- 存储 -->
+  <rect x="40" y="740" width="960" height="86" class="db"/>
+  <text x="56" y="762" class="t">存储层</text>
+  <text x="60" y="784" class="s">MySQL 8.0（线上）　│　H2 2.2.224 MODE=MySQL（开发/演示，文件库 data/textbook_loop）</text>
+  <text x="60" y="806" class="xs">37 张表：sys_*（学校/用户/课程/教材/短信/认证/商户/幂等/进阶码）+ biz_*（商品/订单/约见/退款/爽约/会话/结算/信用）+ stat_daily</text>
+  <path class="line" d="M389,724 L389,740"/>
+</svg>

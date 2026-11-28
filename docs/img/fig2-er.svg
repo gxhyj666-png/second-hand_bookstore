@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1130" height="960" viewBox="0 0 1130 960" font-family="Microsoft YaHei, PingFang SC, sans-serif">
+  <defs>
+    <marker id="a2" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 z" fill="#475569"/>
+    </marker>
+    <style>
+      .th { font-size: 14px; font-weight: bold; fill: #0f172a; }
+      .pk { font-size: 12px; fill: #b91c1c; font-weight: bold; }
+      .fk { font-size: 11.5px; fill: #1d4ed8; }
+      .at { font-size: 11.5px; fill: #334155; }
+      .rel { font-size: 12px; fill: #0f766e; }
+      .cap { font-size: 12px; fill: #64748b; }
+      .lk { stroke: #475569; stroke-width: 1.4; fill: none; marker-end: url(#a2); }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1130" height="960" fill="#ffffff"/>
+  <text x="560" y="34" text-anchor="middle" font-size="19" font-weight="bold" fill="#0f172a">同窗书 · 核心数据表关系图（37 张表中的 11 张主表）</text>
+  <text x="560" y="56" text-anchor="middle" class="cap">红 = 主键；蓝 = 外键；虚线框内的 sys_* 为基础数据，biz_* 为交易数据；完整 37 张表的字段见 db/schema.sql 与 docs/02</text>
+
+  <!-- sys_school -->
+  <rect x="40" y="90" width="250" height="91" rx="10" fill="#eef6ff" stroke="#60a5fa" stroke-width="1.4"/>
+  <text x="54" y="112" class="th">sys_school 学校</text>
+  <text x="54" y="134" class="pk">PK  id</text>
+  <text x="54" y="153" class="at">name / city / created_at</text>
+  <text x="54" y="172" class="at">（种子：本校 1 所）</text>
+
+  <!-- sys_course -->
+  <rect x="40" y="250" width="250" height="129" rx="10" fill="#eef6ff" stroke="#60a5fa" stroke-width="1.4"/>
+  <text x="54" y="272" class="th">sys_course 课程</text>
+  <text x="54" y="294" class="pk">PK  id</text>
+  <text x="54" y="313" class="fk">FK  school_id</text>
+  <text x="54" y="332" class="at">code / name / semester</text>
+  <text x="54" y="351" class="at">teacher / credit</text>
+  <text x="54" y="370" class="at">（种子：高等数学等 6 门）</text>
+
+  <!-- sys_textbook -->
+  <rect x="340" y="90" width="260" height="167" rx="10" fill="#eef6ff" stroke="#60a5fa" stroke-width="1.4"/>
+  <text x="354" y="112" class="th">sys_textbook 教材</text>
+  <text x="354" y="134" class="pk">PK  id</text>
+  <text x="354" y="153" class="fk">UK  isbn（13 位）</text>
+  <text x="354" y="172" class="at">title / author / publisher</text>
+  <text x="354" y="191" class="at">edition / price / category</text>
+  <text x="354" y="210" class="at">cover_url / stock_ref</text>
+  <text x="354" y="229" class="at">created_at</text>
+  <text x="354" y="248" class="at">（ISBN 三通道：本地 / 云市场 / 扫码）</text>
+
+  <!-- sys_course_textbook -->
+  <rect x="340" y="300" width="260" height="110" rx="10" fill="#eef6ff" stroke="#60a5fa" stroke-width="1.4"/>
+  <text x="354" y="322" class="th">sys_course_textbook 课程教材</text>
+  <text x="354" y="344" class="pk">PK  id</text>
+  <text x="354" y="363" class="fk">FK  course_id</text>
+  <text x="354" y="382" class="fk">FK  textbook_id</text>
+  <text x="354" y="401" class="at">required / sort_no</text>
+
+  <!-- sys_user -->
+  <rect x="660" y="90" width="290" height="186" rx="10" fill="#eef6ff" stroke="#60a5fa" stroke-width="1.4"/>
+  <text x="674" y="112" class="th">sys_user 用户（5 类角色）</text>
+  <text x="674" y="134" class="pk">PK  id</text>
+  <text x="674" y="153" class="fk">UK  phone</text>
+  <text x="674" y="172" class="at">nickname / real_name / avatar</text>
+  <text x="674" y="191" class="at">role：STUDENT/LEADER/MERCHANT/ADMIN/OPERATOR</text>
+  <text x="674" y="210" class="at">id_no / id_verified / student_verified / face_verified</text>
+  <text x="674" y="229" class="at">id_card_front/back / student_card_*</text>
+  <text x="674" y="248" class="at">credit_score（默认 100）/ status</text>
+
+  <!-- sys_merchant -->
+  <rect x="660" y="330" width="290" height="110" rx="10" fill="#eef6ff" stroke="#60a5fa" stroke-width="1.4"/>
+  <text x="674" y="352" class="th">sys_merchant 商户</text>
+  <text x="674" y="374" class="pk">PK  id</text>
+  <text x="674" y="393" class="fk">FK  user_id</text>
+  <text x="674" y="412" class="at">shop_name / license_url / contact</text>
+  <text x="674" y="431" class="at">status：PENDING / APPROVED / REJECTED</text>
+
+  <!-- biz_listing -->
+  <rect x="40" y="470" width="280" height="205" rx="10" fill="#fff7ed" stroke="#fb923c" stroke-width="1.4"/>
+  <text x="54" y="492" class="th">biz_listing 二手商品</text>
+  <text x="54" y="514" class="pk">PK  id</text>
+  <text x="54" y="533" class="fk">FK  seller_id → sys_user</text>
+  <text x="54" y="552" class="fk">FK  textbook_id → sys_textbook</text>
+  <text x="54" y="571" class="fk">FK  course_id / merchant_id</text>
+  <text x="54" y="590" class="at">price / condition（NEW…POOR）</text>
+  <text x="54" y="609" class="at">status：ON_SALE/LOCKED/SOLD/OFFLINE/REJECTED</text>
+  <text x="54" y="628" class="at">cover_url / image_count / view_count</text>
+  <text x="54" y="647" class="at">description / created_at</text>
+  <text x="54" y="666" class="at">（7 张实拍见 biz_listing_photo）</text>
+
+  <!-- biz_orders -->
+  <rect x="352" y="470" width="336" height="242" rx="10" fill="#fff7ed" stroke="#fb923c" stroke-width="1.4"/>
+  <text x="374" y="492" class="th">biz_orders 订单（三态主干）</text>
+  <text x="374" y="514" class="pk">PK  id　　UK  order_no</text>
+  <text x="374" y="533" class="fk">FK  listing_id / buyer_id / seller_id</text>
+  <text x="374" y="552" class="fk">FK  merchant_id</text>
+  <text x="374" y="571" class="at">amount / pay_channel / paid_at</text>
+  <text x="374" y="590" class="at">status：PENDING_PAY → WAIT_VERIFY → COMPLETED</text>
+  <text x="374" y="609" class="at" font-size="10.5">　退款旁支：REFUNDING / REFUND_AGREED / REFUNDED</text>
+  <text x="374" y="627" class="at" font-size="10.5">　仲裁旁支：ARBITRATING / CLOSED</text>
+  <text x="374" y="646" class="at">verify_code（6 位）/ verify_expire_at（15 min）</text>
+  <text x="374" y="665" class="at">meet_place / meet_time / sign_photo_url / sign_at</text>
+
+  <!-- biz_meet -->
+  <rect x="700" y="500" width="260" height="148" rx="10" fill="#f0fdf4" stroke="#4ade80" stroke-width="1.4"/>
+  <text x="714" y="522" class="th">biz_meet 约见</text>
+  <text x="714" y="544" class="pk">PK  id</text>
+  <text x="714" y="563" class="fk">FK  order_id</text>
+  <text x="714" y="582" class="at">meet_type：TRADE / RETURN</text>
+  <text x="714" y="601" class="at">proposer_id / place / meet_time</text>
+  <text x="714" y="620" class="at">status：PROPOSED/CONFIRMED/CANCELED</text>
+  <text x="714" y="639" class="at">confirmed_at / remark</text>
+
+  <!-- biz_refund -->
+  <rect x="700" y="700" width="290" height="184" rx="10" fill="#f0fdf4" stroke="#4ade80" stroke-width="1.4"/>
+  <text x="714" y="722" class="th">biz_refund 退款 / 仲裁</text>
+  <text x="714" y="744" class="pk">PK  id</text>
+  <text x="714" y="763" class="fk">FK  order_id / applicant_id</text>
+  <text x="714" y="782" class="at">refund_type：RETURN / REFUND_ONLY</text>
+  <text x="714" y="801" class="at">reason / evidence_url / amount</text>
+  <text x="714" y="819" class="at">status：PENDING / AGREED / REJECTED</text>
+  <text x="714" y="836" class="at">　　　ARBITRATING / ARBITRATED</text>
+  <text x="714" y="853" class="at">platform_verdict：SELLER_FAULT / PLATFORM_OK</text>
+  <text x="714" y="871" class="at">decided_by / decided_at / refunded_at</text>
+
+  <!-- biz_settlement -->
+  <rect x="352" y="740" width="336" height="148" rx="10" fill="#f0fdf4" stroke="#4ade80" stroke-width="1.4"/>
+  <text x="374" y="762" class="th">biz_settlement 结算</text>
+  <text x="374" y="784" class="pk">PK  id</text>
+  <text x="374" y="803" class="fk">FK  order_id / seller_id</text>
+  <text x="374" y="822" class="at">amount / commission / batch_no</text>
+  <text x="374" y="841" class="at">status：PENDING（T+1）/ DONE / FAILED</text>
+  <text x="374" y="860" class="at">settle_at</text>
+
+  <!-- relations -->
+  <path class="lk" d="M165,181 L165,250"/>
+  <text x="175" y="220" class="rel">1 : N</text>
+
+  <path class="lk" d="M470,257 L470,300"/>
+  <text x="480" y="284" class="rel">1 : N</text>
+
+  <path class="lk" d="M290,340 L340,340"/>
+  <text x="292" y="332" class="rel">N : M</text>
+
+  <path class="lk" d="M805,276 L805,330"/>
+  <text x="815" y="308" class="rel">1 : 1</text>
+
+  <path class="lk" d="M660,160 L620,160 L620,450 L300,450 L300,470"/>
+  <text x="430" y="444" class="rel">1 : N（卖家发布商品）</text>
+
+  <path class="lk" d="M400,257 L400,420 L200,420 L200,470"/>
+  <text x="150" y="414" class="rel">1 : N</text>
+
+  <path class="lk" d="M320,560 L360,560"/>
+  <text x="322" y="552" class="rel">1 : N</text>
+
+  <path class="lk" d="M510,694 L510,740"/>
+  <text x="520" y="722" class="rel">1 : 1</text>
+
+  <path class="lk" d="M660,540 L700,540"/>
+  <text x="662" y="532" class="rel">1 : N</text>
+
+  <path class="lk" d="M660,640 L680,640 L680,780 L700,780"/>
+  <text x="640" y="672" class="rel">1 : N</text>
+
+  <!-- 旁注 -->
+  <rect x="40" y="880" width="250" height="56" rx="8" fill="#f8fafc" stroke="#cbd5e1"/>
+  <text x="54" y="902" class="cap">交易数据另含 biz_no_show（爽约上报）</text>
+  <text x="54" y="922" class="cap">biz_credit_log（信用流水）biz_conversation/message</text>
+</svg>

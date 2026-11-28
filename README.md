@@ -79,7 +79,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\setup-dev.ps1
 
 ### 方式一：零依赖跑后端（推荐，答辩演示用）
 
-后端自带 **H2 文件库** profile，不需要装 MySQL / Redis：
+后端自带 **H2 文件库** profile，不需要装 MySQL / Redis（后端只依赖 MySQL 与文件库，没有引入 Redis）：
 
 ```bash
 # 仓库根目录执行（自带 Maven Wrapper，不需要预装 Maven）
@@ -100,7 +100,7 @@ java -jar server\target\textbook-loop-server-0.1.0.jar --spring.profiles.active=
   —— 它会停掉 8088 上的后端、删掉仓库根的 `data/`、重新启动并等健康检查通过。
   注意 `application-dev.yml` 里的 H2 是相对路径 `./data`，**相对进程工作目录**，所以必须在仓库根启动。
 
-### 方式二：MySQL + Redis + 全部服务
+### 方式二：MySQL + 全部服务（Docker Compose）
 
 ```bash
 docker compose up -d --build
@@ -173,6 +173,23 @@ ISBN 查询（命中/未命中）→ 实名学生认证状态 → 下单并完�
 第二笔走「卖家拒绝退款 → 买家申请平台介入 → 管理员判定卖家责任 → 强制退款」；再验证私信收发与商户入驻审核、批量上架。
 两个脚本都要求后端已在 `http://127.0.0.1:8088` 运行。
 
+## 测试与性能
+
+测试用例与报告见 [`docs/12-系统测试用例与报告.md`](docs/12-系统测试用例与报告.md)（53 条：主链路 17 + 分支 21 + 边界 15），
+论文插图（架构 / ER / 状态机 / 核销时序）见 [`docs/13-论文插图.md`](docs/13-论文插图.md)。
+
+```powershell
+# 读接口压测（列表 / 推荐 / 详情，默认 20 线程 × 50 次）
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\perf\load-list.ps1 -Scenario list -Threads 20 -Iterations 50
+
+# 并发抢同一本书（防超卖验证：成功必须 ≤ 1）
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\perf\concurrent-order.ps1 -Token <买家JWT> -ListingId <商品ID> -Concurrency 20
+```
+
+本机实测（Windows + JDK17 + H2 + `-Xmx512m`，2026-11-28）：list **1065 TPS** / P95 42 ms、recommend **1057 TPS** / P95 65 ms、
+detail **1159 TPS** / P95 45 ms（各 1000 请求 0 失败）；20 并发抢同一本书 **只成功 1 单**、其余 19 单返回
+`40900 商品已下架或已被预订` / `40900 商品已被其他人抢先下单`，商品最终 `LOCKED` —— 无超卖。
+
 ## 目录结构
 
 ```
@@ -191,12 +208,18 @@ second-hand_bookstore/
 │   ├── 06-终端形态说明.md   # 为什么先做响应式 Web、APK 怎么出
 │   ├── 07-需求对齐与改造清单.md  # 打磨需求逐条对照与差距
 │   ├── 08-本地环境与IDEA配置.md  # 一键脚本 / SDK / 运行配置 / 排错
-│   └── word/               # 上述四份文档的 Word 版（交作业/答辩直接打印）
+│   ├── 09-项目状态与交接.md  # 当前进度、验证基线、未完成清单（接手先读）
+│   ├── 10-新会话开场提示.md  # 换 AI 会话时的开场白模板
+│   ├── 11-任务书与选题表对照验证.md  # 逐条对照任务书要求，缺口与优先级
+│   ├── 12-系统测试用例与报告.md  # 53 条测试用例 + 性能实测数据
+│   ├── 13-论文插图.md       # 架构 / ER / 状态机 / 时序四张图的源文件与写法
+│   ├── img/                # 论文插图（SVG 源 + 2 倍 PNG）
+│   └── word/               # 上述文档的 Word 版（交作业/答辩直接打印）
 ├── server/                 # Spring Boot 后端
 │   └── src/main/java/com/textbook/loop/
 │       ├── controller/     # REST 控制器
 │       ├── service/        # 业务逻辑（订单状态机、核销、接龙、评价…）
-│       ├── domain/         # 33 个实体（与 db/schema.sql 一一对应）
+│       ├── domain/         # 37 个实体（与 db/schema.sql 一一对应）
 │       ├── mapper/         # MyBatis-Plus Mapper
 │       ├── security/       # JWT、登录上下文、拦截器
 │       ├── bootstrap/      # 首次启动灌示例数据
@@ -205,6 +228,7 @@ second-hand_bookstore/
 ├── web/                    # Vue 3 用户端 Web / H5（Vant，可封装 APK）
 ├── miniapp/                # 微信小程序（参考实现，非主交付）
 ├── tools/                  # setup-dev（一键环境）、smoke / e2e-trade（冒烟）、reset-dev、生成器
+│   └── perf/               # 并发抢单（防超卖）与读接口压测脚本
 └── docker-compose.yml
 ```
 
@@ -227,12 +251,13 @@ second-hand_bookstore/
 
 - **为什么既有 H2 又有 MySQL DDL？** 答辩现场装 MySQL 风险高；H2 用 `MODE=MySQL`，DDL 由
   `tools/gen-h2-schema.js` 从 `db/schema.sql` 机械生成，两边结构永远一致，而不是维护两份手写脚本。
-- **为什么核销码是动态的？** 静态二维码容易被截图转发，线下交付必须"当面出示、当场校验"；
-  用 HMAC-SHA256 以 30 秒为窗口生成，容忍一个窗口的时钟漂移。
+- **为什么核销码是 6 位数字、15 分钟有效？** 线下交付要"当面出示、当场核销"：买家在自己手机上取码，
+  卖家在自己账号里输入，过期即失效、重取换新码——既防截图转发，也不要求买卖双方装同一个 App。
 - **为什么下单要幂等表？** 学生网络差时容易连点，重复请求应返回同一张订单而不是报错；
   `sys_idempotent` 记录 requestId → orderNo，第二个请求直接读回结果。
-- **为什么资金是 FROZEN 而不是直接打款？** 平台不碰资金池：下单冻结、核销后结算给卖家，
-  退款时释放，符合"担保交易"的口径。
+- **为什么订单只有三态，钱去哪了？** 线下交易没有"物流在途"，状态越多非法迁移组合越多：
+  `待支付 → 待核销 → 已完成` 加退款/仲裁旁支就够；资金与结算信息单独放 `biz_settlement`
+  （佣金、结算时间、批次），而不是把"钱的状态"塞进订单状态机。
 
 - **为什么先做响应式 Web 而不是继续做小程序？** 小程序要 AppID、真机预览与审核，验证成本高；响应式 Web 一套代码同时覆盖 PC 与手机，答辩演示只需要一个浏览器。将来要 APK 时用 Capacitor 套壳（`web/capacitor.config.ts` 已预留），改的只有构建配置，页面代码不动；要小程序时也能复用同一套 HTTP 接口重做 UI。
 
