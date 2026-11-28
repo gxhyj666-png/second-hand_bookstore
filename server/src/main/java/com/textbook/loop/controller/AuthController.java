@@ -27,7 +27,7 @@ public class AuthController {
     public record RegisterReq(String phone, String password, String nickname) {
     }
 
-    public record LoginReq(String account, String password) {
+    public record LoginReq(String account, String password, String loginType) {
     }
 
     public record WechatReq(String code) {
@@ -49,7 +49,7 @@ public class AuthController {
 
     @PostMapping("/login")
     public ApiResponse<TokenView> login(@RequestBody LoginReq req) {
-        return ApiResponse.ok(authService.login(req.account(), req.password()));
+        return ApiResponse.ok(authService.login(req.account(), req.password(), req.loginType()));
     }
 
     @PostMapping("/wechat")
@@ -60,6 +60,12 @@ public class AuthController {
     @GetMapping("/me")
     public ApiResponse<Object> me() {
         return ApiResponse.ok(authService.me(UserContext.requireUserId()));
+    }
+
+    /** 当前账号的全部身份（主身份在前），前端据此显示商户 / 运营入口。 */
+    @GetMapping("/roles")
+    public ApiResponse<java.util.List<String>> roles() {
+        return ApiResponse.ok(authService.rolesOf(UserContext.requireUserId()));
     }
 
     @PutMapping("/profile")

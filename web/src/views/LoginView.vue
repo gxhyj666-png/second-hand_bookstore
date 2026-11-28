@@ -7,8 +7,31 @@
     </div>
 
     <div class="sheet">
-      <h2>欢迎回来</h2>
-      <p class="muted sub">登录后即可发布教材、接龙拼单和查看订单。</p>
+      <div class="identity-switch">
+        <button
+          type="button"
+          :class="{ active: identity === 'STUDENT' }"
+          @click="switchIdentity('STUDENT')"
+        >
+          学生登录
+        </button>
+        <button
+          type="button"
+          :class="{ active: identity === 'MERCHANT' }"
+          @click="switchIdentity('MERCHANT')"
+        >
+          商户登录
+        </button>
+      </div>
+
+      <h2>{{ identity === 'MERCHANT' ? '商户登录' : '欢迎回来' }}</h2>
+      <p class="muted sub">
+        {{
+          identity === 'MERCHANT'
+            ? '商户与学生是两类账号，登录方式相同；首次商户登录会自动建号，填完入驻资料等运营审核。'
+            : '登录后即可发布教材、接龙拼单和查看订单。'
+        }}
+      </p>
 
       <van-tabs v-model:active="mode" color="var(--brand)" title-active-color="var(--brand)" class="login-tabs">
         <van-tab title="短信验证码" name="sms" />
@@ -104,12 +127,13 @@
             <span>13800000002</span>
           </button>
           <button type="button" class="demo-item" @click="fillDemo('seller')">
-            <strong>卖家</strong>
+            <strong>商户</strong>
             <span>13800000003</span>
           </button>
         </div>
         <p class="demo-tip">
           开发模式点“获取验证码”会直接回填验证码；账号密码登录的演示密码为 123456。
+          商户账号请先切到「商户登录」再登录。
         </p>
       </section>
     </div>
@@ -127,6 +151,7 @@ const router = useRouter()
 const store = useUserStore()
 
 const mode = ref('sms')
+const identity = ref(route.query.loginType === 'MERCHANT' ? 'MERCHANT' : 'STUDENT')
 const phone = ref('')
 const code = ref('')
 const account = ref('')
@@ -142,10 +167,21 @@ const DEMO = {
   seller: '13800000003'
 }
 
+function switchIdentity(next) {
+  if (identity.value === next) return
+  identity.value = next
+  // 两类账号用不同手机号，切换时清空输入，避免把学生号带去商户入口
+  phone.value = ''
+  code.value = ''
+  account.value = ''
+  password.value = ''
+}
+
 function fillDemo(role) {
   phone.value = DEMO[role]
   account.value = DEMO[role]
   password.value = '123456'
+  identity.value = role === 'seller' ? 'MERCHANT' : 'STUDENT'
 }
 
 function goRegister() {
@@ -208,10 +244,10 @@ async function submit() {
     if (!/^\d{4,6}$/.test(code.value.trim())) return showToast('请输入验证码')
     loading.value = true
     try {
-      await store.smsLogin(p, code.value.trim())
+      await store.smsLogin(p, code.value.trim(), identity.value)
       showToast('登录成功')
       stopCountdown()
-      router.replace(redirectTarget())
+      router.replace(afterLoginTarget())
     } catch {
       // 请求层已经提示，保留输入方便重试
     } finally {
@@ -225,14 +261,22 @@ async function submit() {
   if (!password.value) return showToast('请输入密码')
   loading.value = true
   try {
-    await store.login(acc, password.value)
+    await store.login(acc, password.value, identity.value)
     showToast('登录成功')
-    router.replace(redirectTarget())
+    router.replace(afterLoginTarget())
   } catch {
     // 请求层已经提示，保留输入方便重试
   } finally {
     loading.value = false
   }
+}
+
+/** 商户登录后：还没入驻的去填资料，已入驻的直接进工作台。 */
+function afterLoginTarget() {
+  if (identity.value === 'MERCHANT') {
+    return store.user?.merchantId ? '/merchant/workbench' : '/merchant'
+  }
+  return redirectTarget()
 }
 
 onBeforeUnmount(stopCountdown)
@@ -283,6 +327,30 @@ onBeforeUnmount(stopCountdown)
   margin: 0 8px 4px;
   font-size: 20px;
   font-weight: 800;
+}
+.identity-switch {
+  display: flex;
+  gap: 6px;
+  margin: 0 8px 14px;
+  padding: 4px;
+  background: #f2f5f3;
+  border-radius: 12px;
+}
+.identity-switch button {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: #6b7a72;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 8px 0;
+  border-radius: 9px;
+  cursor: pointer;
+}
+.identity-switch button.active {
+  background: #fff;
+  color: var(--brand);
+  box-shadow: 0 1px 4px rgba(31, 74, 56, 0.14);
 }
 .sub {
   margin: 0 8px 10px;

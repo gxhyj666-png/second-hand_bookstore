@@ -744,3 +744,20 @@ CREATE TABLE biz_offline_verify (
     KEY idx_user (user_id),
     KEY idx_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='线下认证与核实';
+
+-- -----------------------------------------------------------------------------
+-- 用户附加身份：一个人一个账号，团长 / 商户 / 运营都是同一账号上叠加的身份。
+-- 主身份仍存 sys_user.role（登录时选择的那重），本表只记"额外获得"的身份，
+-- 例如商户用进阶码升级运营后：sys_user.role = 'MERCHANT'，本表 + ('OPERATOR')。
+-- -----------------------------------------------------------------------------
+DROP TABLE IF EXISTS sys_user_role;
+CREATE TABLE sys_user_role (
+    id             BIGINT        NOT NULL AUTO_INCREMENT,
+    user_id        BIGINT        NOT NULL,
+    role           VARCHAR(16)   NOT NULL COMMENT 'OPERATOR/MERCHANT/LEADER',
+    source         VARCHAR(32)   NOT NULL DEFAULT 'UPGRADE' COMMENT 'UPGRADE/ADMIN/SEED',
+    granted_at     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_user_role (user_id, role),
+    KEY idx_role (role)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户附加身份';

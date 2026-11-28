@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
 import lombok.Data;
 
 /**
- * biz_promotion 推广绑定关系：运营（推广码）→ 下线用户，一个用户只归属一个运营。
+ * biz_promotion
  */
 @Data
 @TableName("biz_promotion")

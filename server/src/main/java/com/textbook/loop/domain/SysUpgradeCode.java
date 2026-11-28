@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 import lombok.Data;
 
 /**
- * sys_upgrade_code 商户/运营进阶码：平台生成，一码一用。
+ * sys_upgrade_code
  */
 @Data
 @TableName("sys_upgrade_code")
@@ -24,7 +24,7 @@ public class SysUpgradeCode implements Serializable {
     /** 8 位进阶码 */
     private String code;
 
-    /** MERCHANT / OPERATOR */
+    /** MERCHANT 商户 / OPERATOR 运营 */
     private String targetRole;
 
     /** UNUSED/USED/REVOKED */

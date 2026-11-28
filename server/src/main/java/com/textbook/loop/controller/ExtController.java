@@ -54,7 +54,7 @@ public class ExtController {
     public record SmsCodeReq(String phone, String purpose) {
     }
 
-    public record SmsLoginReq(String phone, String code) {
+    public record SmsLoginReq(String phone, String code, String loginType) {
     }
 
     public record IdCardReq(String realName, String idNo, String frontUrl, String backUrl) {
@@ -84,7 +84,7 @@ public class ExtController {
 
     @PostMapping("/auth/sms-login")
     public ApiResponse<TokenView> smsLogin(@RequestBody SmsLoginReq req) {
-        return ApiResponse.ok(authService.smsLogin(req.phone(), req.code()));
+        return ApiResponse.ok(authService.smsLogin(req.phone(), req.code(), req.loginType()));
     }
 
     // ---------------- 实名 / 学生 / 人脸 ----------------

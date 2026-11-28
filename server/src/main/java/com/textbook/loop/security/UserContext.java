@@ -48,17 +48,26 @@ public final class UserContext {
         return user != null && ("ADMIN".equals(user.role()) || "CLERK".equals(user.role()));
     }
 
+    /** 当前用户是否拥有某个身份（主身份或附加身份，如商户进阶运营后的 OPERATOR）。 */
+    public static boolean hasRole(String role) {
+        LoginUser user = HOLDER.get();
+        return user != null && user.hasRole(role);
+    }
+
+    public static String roles() {
+        LoginUser user = HOLDER.get();
+        return user == null ? "" : user.roles();
+    }
+
     public static void requireAdmin() {
         if (!isAdmin()) {
             throw BizException.forbidden("需要管理员权限");
         }
     }
 
-    /** 运营端权限：OPERATOR 或管理员。 */
+    /** 运营端权限：拥有 OPERATOR 身份（主身份或进阶所得）或管理员。 */
     public static void requireOperator() {
-        LoginUser user = HOLDER.get();
-        boolean ok = user != null && ("OPERATOR".equals(user.role()) || "ADMIN".equals(user.role()));
-        if (!ok) {
+        if (!hasRole("OPERATOR") && !isAdmin()) {
             throw BizException.forbidden("需要运营权限");
         }
     }

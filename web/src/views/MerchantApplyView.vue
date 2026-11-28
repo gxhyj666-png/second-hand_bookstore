@@ -3,7 +3,18 @@
     <van-nav-bar title="商户中心" left-arrow fixed placeholder safe-area-inset-top @click-left="router.back()" />
 
     <div class="container">
-      <section class="hero" :class="statusTone">
+      <section v-if="!isMerchantAccount" class="card guide-card">
+        <h2 class="card-title">商户是独立账号</h2>
+        <p class="muted">
+          当前登录的是学生账号，不能在这里开店。请退出后，在登录页切到「商户登录」，
+          用手机号验证码登录（首次会自动创建商户账号），再回来填写店铺资料等运营审核。
+        </p>
+        <van-button block round plain type="primary" class="guide-btn" @click="goMerchantLogin">
+          去商户登录
+        </van-button>
+      </section>
+
+      <section v-if="isMerchantAccount" class="hero" :class="statusTone">
         <div class="hero-icon">
           <van-icon name="shop-o" size="26" />
         </div>
@@ -14,7 +25,7 @@
         <span v-if="merchant" class="status-tag">{{ statusText }}</span>
       </section>
 
-      <section v-if="merchant && merchant.status === 'APPROVED'" class="stats card">
+      <section v-if="isMerchantAccount && merchant && merchant.status === 'APPROVED'" class="stats card">
         <div class="stat">
           <strong>{{ stats?.onSale ?? merchant.listingCount ?? 0 }}</strong>
           <span>在架教材</span>
@@ -30,7 +41,7 @@
       </section>
 
       <!-- 入驻申请 -->
-      <section v-if="showApply" class="card">
+      <section v-if="isMerchantAccount && showApply" class="card">
         <div class="between">
           <h2 class="card-title">{{ merchant ? '重新提交申请' : '提交入驻申请' }}</h2>
           <span class="muted small">审核通过后可批量上架</span>
@@ -60,7 +71,7 @@
       </section>
 
       <!-- 批量上架 -->
-      <section v-if="isApproved" class="card batch-card">
+      <section v-if="isMerchantAccount && isApproved" class="card batch-card">
         <div class="between">
           <h2 class="card-title">批量上架</h2>
           <span class="muted small">单批 ≤ 100 本，整批事务</span>
@@ -122,7 +133,7 @@
       </section>
 
       <!-- 批量下架 -->
-      <section v-if="isApproved" class="card">
+      <section v-if="isMerchantAccount && isApproved" class="card">
         <div class="between">
           <h2 class="card-title">批量下架</h2>
           <van-button size="mini" round plain :loading="mineLoading" @click="loadMine">刷新</van-button>
@@ -179,8 +190,18 @@ import { listingApi, merchantApi } from '@/api'
 import { CONDITION_OPTIONS, conditionText, money } from '@/utils/format'
 import DemoUploader from '@/components/DemoUploader.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import { useUserStore } from '@/store/user'
 
 const router = useRouter()
+const store = useUserStore()
+
+/** 商户是独立账号：只有 role=MERCHANT 的账号能在这里提交入驻资料 */
+const isMerchantAccount = computed(() => store.hasRole('MERCHANT'))
+
+function goMerchantLogin() {
+  store.logout()
+  router.replace({ path: '/login', query: { loginType: 'MERCHANT' } })
+}
 
 const loading = ref(false)
 const applying = ref(false)
@@ -373,6 +394,15 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.guide-card {
+  margin-top: 12px;
+}
+.guide-card .card-title {
+  margin-bottom: 6px;
+}
+.guide-btn {
+  margin-top: 12px;
+}
 .merchant-page {
   background: var(--bg);
 }

@@ -117,20 +117,20 @@ const QUICK = [
 ]
 
 const MENU = computed(() => {
-  const role = store.user?.role
+  const hasRole = (r) => store.allRoles.includes(r)
   const list = [
     { text: '实名 / 学生认证', path: '/verify-center', icon: 'idcard' },
     { text: '我的发布', path: '/my/listings', icon: 'notes-o' },
     { text: '我的评价', path: '/my/reviews', icon: 'comment-o' },
     { text: '私信会话', path: '/messages', icon: 'chat-o' }
   ]
-  if (role === 'OPERATOR') {
+  if (hasRole('OPERATOR')) {
     list.push({ text: '运营中心', path: '/operator', icon: 'friends-o' })
+  } else if (store.isLogin) {
+    // 进阶码只用于升级运营；商户身份由「商户登录 + 入驻审核」获得
+    list.push({ text: '进阶运营', path: '/upgrade', icon: 'upgrade' })
   }
-  if (!role || role === 'STUDENT' || role === 'LEADER') {
-    list.push({ text: '进阶商户 / 运营', path: '/upgrade', icon: 'upgrade' })
-  }
-  if (role === 'MERCHANT' || role === 'ADMIN') {
+  if (hasRole('MERCHANT')) {
     list.push({ text: '商户中心', path: '/merchant', icon: 'shop-o' })
   }
   if (store.user?.merchantId) {

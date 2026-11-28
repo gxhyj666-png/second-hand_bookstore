@@ -59,11 +59,21 @@ public class MerchantService {
         this.noticeService = noticeService;
     }
 
-    /** 入驻申请：提交后进入 PENDING，平台审核。 */
+    /**
+     * 入驻申请：只有<b>商户账号</b>（商户登录创建，role=MERCHANT）能提交，提交后进入 PENDING 等运营审核。
+     * 学生账号不能通过这里变成商户——商户是独立的账号类型，不再走"进阶码/学生升级"那条路。
+     */
     @Transactional
     public SysMerchant apply(Long userId, String shopName, String licenseUrl, String contact) {
         if (shopName == null || shopName.isBlank()) {
             throw BizException.badRequest("请填写店铺名称");
+        }
+        SysUser applicant = userMapper.selectById(userId);
+        if (applicant == null) {
+            throw BizException.notFound("用户不存在");
+        }
+        if (!"MERCHANT".equals(applicant.getRole())) {
+            throw BizException.forbidden("只有商户账号才能提交入驻资料，请退出后用「商户登录」进入");
         }
         SysMerchant exists = merchantMapper.selectOne(new LambdaQueryWrapper<SysMerchant>()
                 .eq(SysMerchant::getUserId, userId).last("limit 1"));

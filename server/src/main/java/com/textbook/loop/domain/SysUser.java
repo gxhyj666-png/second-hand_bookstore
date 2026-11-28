@@ -88,7 +88,7 @@ public class SysUser implements Serializable {
     /** STUDENT/LEADER/MERCHANT/OPERATOR/ADMIN */
     private String role;
 
-    /** 运营推广码（仅 OPERATOR 有） */
+    /** 运营推广码（仅 OPERATOR 有，唯一，NULL 不占唯一位） */
     private String promoCode;
 
     /** UNVERIFIED/PENDING/VERIFIED/REJECTED */

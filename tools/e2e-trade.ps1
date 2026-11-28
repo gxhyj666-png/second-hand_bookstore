@@ -1,4 +1,4 @@
-﻿# 同窗书 · 打磨后交易链路 E2E（退款/平台介入/私信/商户/认证/ISBN）
+# 同窗书 · 打磨后交易链路 E2E（退款/平台介入/私信/商户/认证/ISBN）
 # 用法：powershell -NoProfile -ExecutionPolicy Bypass -File tools\e2e-trade.ps1
 # 前置：后端在 http://127.0.0.1:8088 运行（dev profile，mock 短信与实名）
 
@@ -32,12 +32,14 @@ function Api([string]$method, [string]$path, $token, $body) {
     return $resp.data
 }
 
-function SmsLogin([string]$phone) {
+function SmsLogin([string]$phone, [string]$loginType = '') {
     # 频控是「同一手机号 N 秒一次」，两个脚本连着跑同号会撞上 40900，这里重试几次
     $sent = $null
     for ($i = 0; $i -lt 5; $i++) {
         try {
-            $sent = Api 'POST' '/v1/auth/sms-code' $null @{ phone = $phone }
+            $raw = Invoke-RestMethod -Uri "$base/v1/auth/sms-code" -Method POST -ContentType 'application/json; charset=utf-8' -Body ([Text.Encoding]::UTF8.GetBytes((@{ phone = $phone } | ConvertTo-Json -Compress))) -TimeoutSec 30
+            if ($raw.code -ne 0) { throw "业务错误 [$($raw.code)] $($raw.message)" }
+            $sent = $raw.data
             break
         } catch {
             if ($_.Exception.Message -match '40900|频繁') { Start-Sleep -Milliseconds 1600 } else { throw }
@@ -45,7 +47,9 @@ function SmsLogin([string]$phone) {
     }
     if (-not $sent) { throw "短信验证码发送失败：$phone" }
     Start-Sleep -Milliseconds 1200
-    return Api 'POST' '/v1/auth/sms-login' $null @{ phone = $phone; code = $sent.devCode }
+    $body = @{ phone = $phone; code = $sent.devCode }
+    if ($loginType) { $body['loginType'] = $loginType }
+    return Api 'POST' '/v1/auth/sms-login' $null $body
 }
 
 # 下单一笔并走完「支付 → 取码 → 卖家核销」，返回 COMPLETED 订单
@@ -156,30 +160,33 @@ Step '卖家看到会话并回复' {
     Write-Host ("     会话 {0} 共 {1} 条消息" -f $conv.id, $msgs.Count)
 } | Out-Null
 
-# ---- 场景四：商户入驻 → 平台审核 → 批量上架 ----
-$apply = Step '用户提交商户入驻申请' {
+# ---- 场景四：商户账号登录 → 入驻 → 平台审核 → 批量上架 ----
+# 商户已是独立账号（学生账号不能提交入驻），这里用一个专用商户手机号，重复跑会复用同一账号
+$biz = Step '商户账号短信登录（商户入口）' { SmsLogin '13900000201' 'MERCHANT' }
+$bizToken = $biz.token
+if ($biz.user.role -ne 'MERCHANT') { throw "商户入口建号失败：role=$($biz.user.role)" }
+Write-Host ("     商户账号 {0} roles={1}" -f $biz.user.nickname, ($biz.roles -join ','))
+$apply = Step '商户提交入驻申请' {
     try {
-        Api 'POST' '/v1/merchant/apply' $buyerToken @{ shopName = 'E2E 测试书店'; licenseUrl = 'demo/license.jpg'; contact = '13800000002' } | Out-Null
+        Api 'POST' '/v1/merchant/apply' $bizToken @{ shopName = 'E2E 测试书店'; licenseUrl = 'demo/license.jpg'; contact = '13900000201' } | Out-Null
         Write-Host '     已提交，等待平台审核'
     } catch {
         # 脚本可重复跑：该账号可能已经是商户，这不算失败
-        if ($_.Exception.Message -match '40900|已入驻') { Write-Host '     该账号已是商户，跳过入驻申请' }
+        if ($_.Exception.Message -match '40900|已入驻|APPROV') { Write-Host '     该账号已提交过入驻，跳过' }
         else { throw }
     }
 } | Out-Null
 Step '平台审核通过商户' {
+    $mine = Api 'GET' '/v1/merchant/my' $bizToken $null
+    if ($mine -and $mine.status -eq 'APPROVED') { Write-Host '     商户已是 APPROVED，跳过审核'; return }
     $pend = Api 'GET' '/v1/admin/merchants?status=PENDING' $adminToken $null
     $rows = if ($pend.records) { $pend.records } else { $pend }
     $target = $rows | Where-Object { $_.status -eq 'PENDING' } | Select-Object -First 1
-    if (-not $target) {
-        $mine = Api 'GET' '/v1/merchant/my' $buyerToken $null
-        if ($mine -and $mine.status -eq 'APPROVED') { Write-Host '     商户已是 APPROVED，跳过审核'; return }
-        throw '待审列表里没有刚提交的商户'
-    }
+    if (-not $target) { throw '待审列表里没有刚提交的商户' }
     Api 'POST' "/v1/admin/merchants/$($target.id)/review" $adminToken @{ approved = $true; reason = '资质齐全' } | Out-Null
 } | Out-Null
 Step '商户批量上架 2 本书' {
-    $r = Api 'POST' '/v1/merchant/listings/batch' $buyerToken @{ listings = @(
+    $r = Api 'POST' '/v1/merchant/listings/batch' $bizToken @{ listings = @(
         @{ title = 'E2E 批量书 A'; textbookId = 1; courseId = 1; price = 9.90; originalPrice = 49.80; conditionLevel = 'GOOD'; description = '批量测试 A'; coverUrl = 'demo/a.jpg'; imageCount = 1; dorm = '1-101' },
         @{ title = 'E2E 批量书 B'; textbookId = 2; courseId = 2; price = 15.00; originalPrice = 59.00; conditionLevel = 'LIKE_NEW'; description = '批量测试 B'; coverUrl = 'demo/b.jpg'; imageCount = 1; dorm = '1-102' }
     ) }
@@ -187,8 +194,17 @@ Step '商户批量上架 2 本书' {
     if ($r.count -ne 2) { throw "上架数量异常：$($r.count)" }
 } | Out-Null
 Step '商户统计' {
-    $s = Api 'GET' '/v1/merchant/stats' $buyerToken $null
+    $s = Api 'GET' '/v1/merchant/stats' $bizToken $null
     Write-Host ("     店铺 {0} 在售 {1} 件" -f $s.shopName, $s.onSale)
+} | Out-Null
+Step '学生账号不能提交入驻（应 40300）' {
+    try {
+        Api 'POST' '/v1/merchant/apply' $buyerToken @{ shopName = '学生误提交'; licenseUrl = 'demo/x.jpg'; contact = '13800000002' } | Out-Null
+        throw '学生账号居然能提交入驻'
+    } catch {
+        if ($_.Exception.Message -match '40300') { Write-Host '     已拒绝：只有商户账号才能入驻' }
+        else { throw }
+    }
 } | Out-Null
 
 Write-Host ("`n=== 结果：{0} 通过 / {1} 失败 ===`n" -f $script:pass, $script:fail) -ForegroundColor Cyan

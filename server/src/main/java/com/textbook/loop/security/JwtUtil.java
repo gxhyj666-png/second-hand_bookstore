@@ -34,10 +34,18 @@ public class JwtUtil {
     }
 
     public String issue(Long userId, String role) {
+        return issue(userId, role, role);
+    }
+
+    /** 签发令牌：roles 是"主身份 + 附加身份"的逗号串（如 MERCHANT,OPERATOR）。 */
+    public String issue(Long userId, String role, String roles) {
         long now = System.currentTimeMillis();
+        String primary = role == null ? "STUDENT" : role;
+        String all = roles == null || roles.isBlank() ? primary : roles;
         return Jwts.builder()
                 .subject(String.valueOf(userId))
-                .claim("role", role == null ? "STUDENT" : role)
+                .claim("role", primary)
+                .claim("roles", all)
                 .issuedAt(new Date(now))
                 .expiration(new Date(now + ttlMillis))
                 .signWith(key)
@@ -51,7 +59,10 @@ public class JwtUtil {
         try {
             Claims claims = Jwts.parser().verifyWith(key).build()
                     .parseSignedClaims(token).getPayload();
-            return new LoginUser(Long.parseLong(claims.getSubject()), (String) claims.get("role"));
+            String role = (String) claims.get("role");
+            String roles = (String) claims.get("roles");
+            return new LoginUser(Long.parseLong(claims.getSubject()), role,
+                    roles == null || roles.isBlank() ? role : roles);
         } catch (JwtException | IllegalArgumentException e) {
             return null;
         }

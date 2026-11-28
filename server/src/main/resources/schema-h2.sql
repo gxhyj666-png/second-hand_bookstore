@@ -692,3 +692,19 @@ CREATE TABLE IF NOT EXISTS biz_offline_verify (
     created_at     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id)
 );
+
+-- -----------------------------------------------------------------------------
+-- 用户附加身份：一个人一个账号，团长 / 商户 / 运营都是同一账号上叠加的身份。
+-- 主身份仍存 sys_user.role（登录时选择的那重），本表只记"额外获得"的身份，
+-- 例如商户用进阶码升级运营后：sys_user.role = 'MERCHANT'，本表 + ('OPERATOR')。
+-- -----------------------------------------------------------------------------
+DROP TABLE IF EXISTS sys_user_role;
+CREATE TABLE IF NOT EXISTS sys_user_role (
+    id             BIGINT        NOT NULL AUTO_INCREMENT,
+    user_id        BIGINT        NOT NULL,
+    role           VARCHAR(16)   NOT NULL,
+    source         VARCHAR(32)   NOT NULL DEFAULT 'UPGRADE',
+    granted_at     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    CONSTRAINT sys_user_role_uk_user_role UNIQUE (user_id, role)
+);

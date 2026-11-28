@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 import lombok.Data;
 
 /**
- * biz_offline_verify 线下认证与核实：用户提交材料，运营线下核验后置结果。
+ * biz_offline_verify
  */
 @Data
 @TableName("biz_offline_verify")

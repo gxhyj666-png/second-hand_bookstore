@@ -40,11 +40,12 @@ public class OperatorService {
     private final BizOfflineVerifyMapper offlineVerifyMapper;
     private final SysUserMapper userMapper;
     private final NoticeService noticeService;
+    private final UserRoleService roleService;
 
     public OperatorService(BizPromotionMapper promotionMapper, BizCommissionMapper commissionMapper,
                            BizOrdersMapper ordersMapper, BizTicketMapper ticketMapper,
                            BizOfflineVerifyMapper offlineVerifyMapper, SysUserMapper userMapper,
-                           NoticeService noticeService) {
+                           NoticeService noticeService, UserRoleService roleService) {
         this.promotionMapper = promotionMapper;
         this.commissionMapper = commissionMapper;
         this.ordersMapper = ordersMapper;
@@ -52,6 +53,7 @@ public class OperatorService {
         this.offlineVerifyMapper = offlineVerifyMapper;
         this.userMapper = userMapper;
         this.noticeService = noticeService;
+        this.roleService = roleService;
     }
 
     // ------------------------------------------------------------------ 概览 / 推广
@@ -123,7 +125,7 @@ public class OperatorService {
         String code = promoCode.trim().toUpperCase();
         SysUser promoter = userMapper.selectOne(new LambdaQueryWrapper<SysUser>()
                 .eq(SysUser::getPromoCode, code).last("limit 1"));
-        if (promoter == null || !"OPERATOR".equals(promoter.getRole())) {
+        if (promoter == null || !roleService.has(promoter, "OPERATOR")) {
             throw BizException.notFound("推广码无效");
         }
         if (promoter.getId().equals(inviteeId)) {
@@ -305,7 +307,10 @@ public class OperatorService {
     public PageResult<Map<String, Object>> operators(long page, long size) {
         Page<SysUser> p = userMapper.selectPage(Page.of(page, size),
                 new LambdaQueryWrapper<SysUser>()
-                        .eq(SysUser::getRole, "OPERATOR")
+                        // 运营身份可能是主身份，也可能是商户/学生进阶叠加的，两处都要查
+                        .and(w -> w.eq(SysUser::getRole, "OPERATOR")
+                                .or()
+                                .apply("exists (select 1 from sys_user_role ur where ur.user_id = sys_user.id and ur.role = 'OPERATOR')"))
                         .orderByDesc(SysUser::getId));
         List<Map<String, Object>> rows = new ArrayList<>();
         for (SysUser u : p.getRecords()) {

@@ -4,10 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.textbook.loop.common.BizException;
 import com.textbook.loop.common.PageResult;
-import com.textbook.loop.domain.SysMerchant;
 import com.textbook.loop.domain.SysUpgradeCode;
 import com.textbook.loop.domain.SysUser;
-import com.textbook.loop.mapper.SysMerchantMapper;
 import com.textbook.loop.mapper.SysUpgradeCodeMapper;
 import com.textbook.loop.mapper.SysUserMapper;
 import com.textbook.loop.security.JwtUtil;
@@ -39,23 +37,23 @@ public class UpgradeService {
 
     private final SysUpgradeCodeMapper codeMapper;
     private final SysUserMapper userMapper;
-    private final SysMerchantMapper merchantMapper;
     private final JwtUtil jwtUtil;
+    private final UserRoleService roleService;
 
     public UpgradeService(SysUpgradeCodeMapper codeMapper, SysUserMapper userMapper,
-                          SysMerchantMapper merchantMapper, JwtUtil jwtUtil) {
+                          JwtUtil jwtUtil, UserRoleService roleService) {
         this.codeMapper = codeMapper;
         this.userMapper = userMapper;
-        this.merchantMapper = merchantMapper;
         this.jwtUtil = jwtUtil;
+        this.roleService = roleService;
     }
 
-    /** 管理员批量生成进阶码：targetRole 取 MERCHANT / OPERATOR，expireDays<=0 表示永久有效。 */
+    /** 管理员批量生成进阶码：目前只有 OPERATOR（运营）一种，expireDays<=0 表示永久有效。 */
     @Transactional
     public List<String> generate(Long adminId, String targetRole, int count, int expireDays) {
         String role = targetRole == null ? "" : targetRole.trim().toUpperCase();
-        if (!"MERCHANT".equals(role) && !"OPERATOR".equals(role)) {
-            throw BizException.badRequest("进阶类型只能是 MERCHANT 或 OPERATOR");
+        if (!"OPERATOR".equals(role)) {
+            throw BizException.badRequest("进阶码只能用于运营身份；商户身份请用「商户登录」注册并提交入驻资料");
         }
         int n = Math.max(1, Math.min(count, 100));
         String batchNo = "UPC" + LocalDateTime.now().format(BATCH_FMT);
@@ -104,8 +102,10 @@ public class UpgradeService {
     }
 
     /**
-     * 用户兑换进阶码：商户直接开通入驻，运营生成专属推广码。
-     * 返回新令牌（角色已变更，旧令牌里的角色不会自动更新）。
+     * 用户兑换进阶码（目前只有运营码）：在学生或商户账号上<b>叠加</b>运营身份，
+     * 主身份与原有功能（如商户工作台）全部保留，并生成专属推广码。
+     * 返回新令牌（附加身份变化，旧令牌里没有 OPERATOR，需要替换）。
+     * shopName / contact 仅为兼容旧调用保留，运营进阶不再使用。
      */
     @Transactional
     public Map<String, Object> redeem(Long userId, String code, String shopName, String contact) {
@@ -130,44 +130,31 @@ public class UpgradeService {
         if ("ADMIN".equals(user.getRole())) {
             throw BizException.conflict("管理员无需进阶");
         }
-        if ("MERCHANT".equals(user.getRole()) || "OPERATOR".equals(user.getRole())) {
-            throw BizException.conflict("当前账号已完成进阶：" + user.getRole());
+        if (!"OPERATOR".equals(c.getTargetRole())) {
+            throw BizException.badRequest("该进阶码不是运营码，无法使用");
+        }
+        if (roleService.has(user, "OPERATOR")) {
+            throw BizException.conflict("当前账号已经是运营身份");
         }
 
-        Map<String, Object> result = new LinkedHashMap<>();
-        if ("MERCHANT".equals(c.getTargetRole())) {
-            String name = shopName == null || shopName.isBlank() ? user.getNickname() + "的教材店" : shopName.trim();
-            SysMerchant m = new SysMerchant();
-            m.setUserId(userId);
-            m.setShopName(name);
-            m.setLicenseUrl("");
-            m.setContact(contact == null ? user.getPhone() : contact.trim());
-            m.setStatus("APPROVED");
-            m.setRejectReason("");
-            m.setApprovedBy(c.getIssuedBy() == null ? 0L : c.getIssuedBy());
-            m.setApprovedAt(LocalDateTime.now());
-            m.setListingCount(0);
-            merchantMapper.insert(m);
-            user.setMerchantId(m.getId());
-            user.setRole("MERCHANT");
-            result.put("merchantId", m.getId());
-            result.put("shopName", name);
-        } else {
-            user.setRole("OPERATOR");
-            if (user.getPromoCode() == null || user.getPromoCode().isBlank()) {
-                user.setPromoCode(uniquePromoCode());
-            }
-            result.put("promoCode", user.getPromoCode());
+        // 只叠加运营身份，不改主身份：学生还是学生，商户还是商户，原有功能全部保留。
+        roleService.grant(userId, "OPERATOR", "UPGRADE");
+        if (user.getPromoCode() == null || user.getPromoCode().isBlank()) {
+            user.setPromoCode(uniquePromoCode());
+            userMapper.updateById(user);
         }
-        userMapper.updateById(user);
 
         c.setStatus("USED");
         c.setUsedBy(userId);
         c.setUsedAt(LocalDateTime.now());
         codeMapper.updateById(c);
 
+        java.util.List<String> roles = roleService.rolesOf(user);
+        Map<String, Object> result = new LinkedHashMap<>();
         result.put("role", user.getRole());
-        result.put("token", jwtUtil.issue(user.getId(), user.getRole()));
+        result.put("roles", roles);
+        result.put("promoCode", user.getPromoCode());
+        result.put("token", jwtUtil.issue(user.getId(), user.getRole(), String.join(",", roles)));
         result.put("user", user);
         return result;
     }

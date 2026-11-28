@@ -12,6 +12,7 @@ node_modules/
 
 # 本地数据库与日志
 data/
+data.bak-*/
 *.mv.db
 *.trace.db
 logs/

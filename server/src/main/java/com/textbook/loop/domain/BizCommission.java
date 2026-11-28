@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 import lombok.Data;
 
 /**
- * biz_commission 推广提成明细：下线订单核销完成后按比例计提。
+ * biz_commission
  */
 @Data
 @TableName("biz_commission")
@@ -30,12 +30,11 @@ public class BizCommission implements Serializable {
 
     private BigDecimal orderAmount;
 
-    /** 提成比例，如 0.0100 表示 1% */
     private BigDecimal rate;
 
     private BigDecimal amount;
 
-    /** PENDING/SETTLED/CANCELLED */
+    /** PENDING 待结算/SETTLED 已结算/CANCELLED 已退款取消 */
     private String status;
 
     private LocalDateTime settleAt;

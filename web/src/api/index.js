@@ -3,9 +3,10 @@ import request from './request'
 /** 认证 */
 export const authApi = {
   register: (data) => request.post('/v1/auth/register', data),
-  login: (data) => request.post('/v1/auth/login', data), // { account, password }
+  login: (data) => request.post('/v1/auth/login', data), // { account, password, loginType? 'STUDENT' | 'MERCHANT' }
   smsCode: (data) => request.post('/v1/auth/sms-code', data), // { phone, purpose? 'LOGIN' | 'BIND_PHONE' }
-  smsLogin: (data) => request.post('/v1/auth/sms-login', data), // { phone, code }
+  smsLogin: (data) => request.post('/v1/auth/sms-login', data), // { phone, code, loginType? 'STUDENT' | 'MERCHANT' }
+  roles: () => request.get('/v1/auth/roles'), // 当前账号全部身份 [MERCHANT, OPERATOR]...
   wechat: (code) => request.post('/v1/auth/wechat', { code }),
   me: () => request.get('/v1/auth/me'),
   updateProfile: (data) => request.put('/v1/auth/profile', data),

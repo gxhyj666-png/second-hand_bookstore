@@ -3,7 +3,7 @@
     <div class="page-title">
       <div>
         <h2>进阶码管理</h2>
-        <p>平台下发商户进阶码与运营进阶码；一码一用，用户凭码在个人中心自助进阶</p>
+        <p>进阶码只用于升级<strong>运营身份</strong>；学生与商户账号都能用它进阶，商户身份与功能保留</p>
       </div>
       <el-tag type="warning" effect="plain" round>本页未使用 {{ unusedCount }} 个</el-tag>
     </div>
@@ -12,7 +12,6 @@
       <div class="toolbar">
         <el-select v-model="query.targetRole" placeholder="全部类型" clearable style="width: 160px" @change="load">
           <el-option label="全部类型" value="" />
-          <el-option label="商户码" value="MERCHANT" />
           <el-option label="运营码" value="OPERATOR" />
         </el-select>
         <el-select v-model="query.status" placeholder="全部状态" clearable style="width: 160px" @change="load">
@@ -36,7 +35,7 @@
         <el-table-column label="类型" width="110" align="center">
           <template #default="{ row }">
             <el-tag size="small" :type="row.targetRole === 'OPERATOR' ? 'success' : 'warning'">
-              {{ row.targetRole === 'OPERATOR' ? '运营' : '商户' }}
+              {{ row.targetRole === 'OPERATOR' ? '运营' : row.targetRole }}
             </el-tag>
           </template>
         </el-table-column>
@@ -77,8 +76,7 @@
       <el-form :model="form" label-width="96px">
         <el-form-item label="进阶类型">
           <el-radio-group v-model="form.targetRole">
-            <el-radio value="MERCHANT">商户码</el-radio>
-            <el-radio value="OPERATOR">运营码</el-radio>
+            <el-radio value="OPERATOR">运营码（商户身份请走「商户登录 + 入驻审核」）</el-radio>
           </el-radio-group>
         </el-form-item>
         <el-form-item label="生成数量">
@@ -109,7 +107,7 @@ const total = ref(0)
 const dialogVisible = ref(false)
 
 const query = reactive({ targetRole: '', status: '', page: 1, size: 10 })
-const form = reactive({ targetRole: 'MERCHANT', count: 5, expireDays: 30 })
+const form = reactive({ targetRole: 'OPERATOR', count: 5, expireDays: 30 })
 
 const unusedCount = computed(() => rows.value.filter((r) => r.status === 'UNUSED').length)
 
@@ -134,7 +132,7 @@ async function generate() {
   try {
     const codes = await generateUpgradeCodes({ ...form })
     dialogVisible.value = false
-    ElMessage.success(`已生成 ${codes?.length || 0} 个${form.targetRole === 'MERCHANT' ? '商户' : '运营'}进阶码`)
+    ElMessage.success(`已生成 ${codes?.length || 0} 个运营进阶码`)
     load()
   } catch {
     // 请求层已经提示

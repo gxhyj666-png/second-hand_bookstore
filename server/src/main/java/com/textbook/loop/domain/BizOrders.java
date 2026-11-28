@@ -46,13 +46,13 @@ public class BizOrders implements Serializable {
     /** PENDING_PAY/WAIT_VERIFY/COMPLETED/REFUNDING/REFUND_AGREED/REFUNDED/ARBITRATING/CLOSED（旧值 FROZEN/VERIFIED/SETTLED 兼容读取） */
     private String status;
 
-    /** TIMEOUT/BUYER_CANCEL/SELLER_CANCEL/PAID_CANCEL */
+    /** 关闭原因：TIMEOUT 超时/BUYER_CANCEL 买家取消/SELLER_CANCEL 卖家取消/PAID_CANCEL 付款后取消 */
     private String closeType;
 
     /** 6 位随机核销码，买家出示、卖家输入 */
     private String verifyCode;
 
-    /** 核销码有效期（生成后 15 分钟） */
+    /** 核销码有效期（生成后 15 分钟，且不超过约定交易时间后 15 分钟） */
     private LocalDateTime verifyExpireAt;
 
     /** 交易地点（双方确认） */
@@ -80,7 +80,7 @@ public class BizOrders implements Serializable {
 
     private String refundReason;
 
-    /** 支付超时时间（15 分钟） */
+    /** 支付超时时间（下单后 5 分钟） */
     private LocalDateTime expireAt;
 
     private LocalDateTime paidAt;

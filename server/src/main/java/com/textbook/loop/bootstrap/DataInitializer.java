@@ -35,6 +35,7 @@ public class DataInitializer implements CommandLineRunner {
     public void run(String... args) {
         Long count = jdbc.queryForObject("select count(*) from sys_user", Long.class);
         if (count != null && count > 0) {
+            migrateRoleModel();
             return;
         }
         long schoolId = 1L;
@@ -45,7 +46,7 @@ public class DataInitializer implements CommandLineRunner {
                 "行政楼 203", 100, "VERIFIED", "admin123");
         long buyerId = user("张同学", "13800000002", "STUDENT", "2023123456", "计算机学院", "软件工程", "2023",
                 "梅园 3 栋 402", 100, "VERIFIED", "123456");
-        long sellerId = user("李同学", "13800000003", "STUDENT", "2023123987", "数学学院", "统计学", "2022",
+        long sellerId = user("李同学", "13800000003", "MERCHANT", "2023123987", "数学学院", "统计学", "2022",
                 "竹园 6 栋 211", 100, "VERIFIED", "123456");
         long clerkId = user("王书店", "13800000004", "CLERK", "", "后勤集团", "", "", "图书馆西门", 100, "VERIFIED", "123456");
         long leaderId = user("陈班长", "13800000005", "LEADER", "2023123111", "计算机学院", "软件工程", "2023",
@@ -54,12 +55,13 @@ public class DataInitializer implements CommandLineRunner {
         jdbc.update("update sys_user set promo_code=? where id=?", "YUN001", operatorId);
         jdbc.update("insert into biz_promotion (promoter_id, invitee_id, promo_code, source) values (?,?,?,?)",
                 operatorId, buyerId, "YUN001", "CODE");
+        // 进阶码只能升级为运营（商户身份改为「商户登录 + 入驻审核」获得，不再有商户进阶码）
         jdbc.update("insert into sys_upgrade_code (code, target_role, status, batch_no, issued_by, remark) "
                         + "values (?,?,?,?,?,?)",
-                "SHOP2026", "MERCHANT", "UNUSED", "SEED", adminId, "演示商户进阶码");
+                "OPER2026", "OPERATOR", "UNUSED", "SEED", adminId, "演示运营进阶码（学生/商户都可用）");
         jdbc.update("insert into sys_upgrade_code (code, target_role, status, batch_no, issued_by, remark) "
                         + "values (?,?,?,?,?,?)",
-                "OPER2026", "OPERATOR", "UNUSED", "SEED", adminId, "演示运营进阶码");
+                "OPER8888", "OPERATOR", "UNUSED", "SEED", adminId, "演示运营进阶码（备用）");
 
         long mathCourse = course("MATH101", "高等数学 A（上）", "数学学院", "计算机学院", "2026-2027-1", "赵平", new BigDecimal("5.0"));
         long linearCourse = course("MATH102", "线性代数", "数学学院", "计算机学院", "2026-2027-1", "周敏", new BigDecimal("3.0"));
@@ -150,6 +152,23 @@ public class DataInitializer implements CommandLineRunner {
         log.info("示例数据初始化完成：admin/13800000001 admin123；其余账号密码 123456；团长陈班长 13800000005，接龙码 JY2026");
     }
 
+    /**
+     * 角色模型迁移（幂等）：老库里"有店铺但主身份还是学生"的账号升级为商户主身份，
+     * 未使用的商户进阶码作废——商户身份现在只来自「商户登录 + 入驻审核」。
+     */
+    private void migrateRoleModel() {
+        try {
+            int merchants = jdbc.update("update sys_user set role='MERCHANT' "
+                    + "where merchant_id > 0 and role in ('STUDENT','LEADER')");
+            int codes = jdbc.update("update sys_upgrade_code set status='REVOKED', remark='商户进阶码已停用' "
+                    + "where target_role='MERCHANT' and status='UNUSED'");
+            if (merchants > 0 || codes > 0) {
+                log.info("角色模型迁移：商户主身份升级 {} 个账号，作废商户进阶码 {} 个", merchants, codes);
+            }
+        } catch (RuntimeException e) {
+            log.warn("角色模型迁移跳过：{}", e.getMessage());
+        }
+    }
     private long user(String nickname, String phone, String role, String studentNo, String college, String major,
                       String grade, String dorm, int credit, String verifyState, String password) {
         jdbc.update("insert into sys_user (nickname, phone, real_name, student_no, school_id, college, major, grade, "

@@ -25,15 +25,17 @@ public class AuthService {
     private final JwtUtil jwtUtil;
     private final SmsService smsService;
     private final NoticeService noticeService;
+    private final UserRoleService roleService;
     private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
 
     public AuthService(SysUserMapper userMapper, UserAuthMapper authMapper, JwtUtil jwtUtil,
-                       SmsService smsService, NoticeService noticeService) {
+                       SmsService smsService, NoticeService noticeService, UserRoleService roleService) {
         this.userMapper = userMapper;
         this.authMapper = authMapper;
         this.jwtUtil = jwtUtil;
         this.smsService = smsService;
         this.noticeService = noticeService;
+        this.roleService = roleService;
     }
 
     @Transactional
@@ -69,10 +71,15 @@ public class AuthService {
         auth.setVerified(1);
         authMapper.insert(auth);
 
-        return new TokenView(jwtUtil.issue(user.getId(), user.getRole()), user);
+        return new TokenView(jwtUtil.issue(user.getId(), user.getRole(), user.getRole()),
+                user, roleService.rolesOf(user));
     }
 
-    public TokenView login(String account, String password) {
+    /**
+     * 账号密码登录。{@code loginType} 为 MERCHANT / STUDENT，用于区分登录页上的两个入口；
+     * 不传（老脚本、后台调用）则不做身份校验，保持兼容。
+     */
+    public TokenView login(String account, String password, String loginType) {
         UserAuth auth = authMapper.selectOne(new LambdaQueryWrapper<UserAuth>()
                 .eq(UserAuth::getAuthType, "PASSWORD")
                 .eq(UserAuth::getIdentifier, account)
@@ -80,6 +87,7 @@ public class AuthService {
         if (auth == null || !encoder.matches(password == null ? "" : password, auth.getCredential())) {
             throw BizException.unauthorized("账号或密码错误");
         }
+        checkLoginType(auth.getUserId(), loginType);
         return issueFor(auth.getUserId());
     }
 
@@ -148,23 +156,29 @@ public class AuthService {
 
 
     /**
-     * 短信验证码登录：所有用户统一走这里；手机号未注册时自动建号（学生身份，待实名/学生认证后才能交易）。
+     * 短信验证码登录：学生与商户共用同一套登录方式，由登录页的「学生登录 / 商户登录」区分入口。
+     *
+     * <p>手机号未注册时自动建号：商户入口建的是<b>商户账号</b>（role=MERCHANT，尚无店铺，
+     * 登录后引导提交入驻资料等运营审核）；学生入口建学生账号。已注册的账号若用错入口，
+     * 直接提示切换，不会把学生账号悄悄变成商户。</p>
      */
     @Transactional
-    public TokenView smsLogin(String phone, String code) {
+    public TokenView smsLogin(String phone, String code, String loginType) {
         if (phone == null || !phone.matches("^1\\d{10}$")) {
             throw BizException.badRequest("手机号格式不正确");
         }
+        String type = normalizeLoginType(loginType);
         smsService.verify(phone, "LOGIN", code);
         SysUser user = userMapper.selectOne(new LambdaQueryWrapper<SysUser>()
                 .eq(SysUser::getPhone, phone).last("limit 1"));
         if (user == null) {
+            boolean merchant = "MERCHANT".equals(type);
             user = new SysUser();
-            user.setNickname("同学" + phone.substring(7));
+            user.setNickname(merchant ? "商户" + phone.substring(7) : "同学" + phone.substring(7));
             user.setPhone(phone);
             user.setSchoolId(1L);
             user.setCreditScore(100);
-            user.setRole("STUDENT");
+            user.setRole(merchant ? "MERCHANT" : "STUDENT");
             user.setVerifyState("UNVERIFIED");
             user.setStatus("NORMAL");
             user.setLastLogin(LocalDateTime.now());
@@ -177,9 +191,40 @@ public class AuthService {
             auth.setCredential("");
             auth.setVerified(1);
             authMapper.insert(auth);
+        } else {
+            checkLoginType(user.getId(), type);
         }
         return issueFor(user.getId());
     }
+
+    /** 登录入口校验：商户入口只放商户账号，学生入口不放主身份为商户的账号。 */
+    private void checkLoginType(Long userId, String loginType) {
+        if (loginType == null || loginType.isBlank()) {
+            return;
+        }
+        SysUser user = userMapper.selectById(userId);
+        if (user == null) {
+            throw BizException.notFound("用户不存在");
+        }
+        if ("MERCHANT".equals(loginType)) {
+            if (!roleService.has(user, "MERCHANT")) {
+                throw BizException.conflict("该手机号是学生账号，不能作为商户登录；如需开店，请用另一个手机号注册商户账号");
+            }
+        } else if ("STUDENT".equals(loginType)) {
+            if ("MERCHANT".equals(user.getRole())) {
+                throw BizException.conflict("该账号是商户账号，请切换到「商户登录」");
+            }
+        }
+    }
+
+    private static String normalizeLoginType(String loginType) {
+        if (loginType == null || loginType.isBlank()) {
+            return "";
+        }
+        String t = loginType.trim().toUpperCase();
+        return "MERCHANT".equals(t) ? "MERCHANT" : "STUDENT";
+    }
+
     private TokenView issueFor(Long userId) {
         SysUser user = userMapper.selectById(userId);
         if (user == null) {
@@ -190,7 +235,8 @@ public class AuthService {
         }
         user.setLastLogin(LocalDateTime.now());
         userMapper.updateById(user);
-        return new TokenView(jwtUtil.issue(user.getId(), user.getRole()), user);
+        java.util.List<String> roles = roleService.rolesOf(user);
+        return new TokenView(jwtUtil.issue(user.getId(), user.getRole(), String.join(",", roles)), user, roles);
     }
 
     public SysUser me(Long userId) {
@@ -199,6 +245,11 @@ public class AuthService {
             throw BizException.notFound("用户不存在");
         }
         return user;
+    }
+
+    /** 当前账号的全部身份（主身份在前）。 */
+    public java.util.List<String> rolesOf(Long userId) {
+        return roleService.rolesOf(userId);
     }
 
     public SysUser updateProfile(Long userId, String nickname, String avatar, String college,
