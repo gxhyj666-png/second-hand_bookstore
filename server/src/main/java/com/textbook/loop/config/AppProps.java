@@ -43,6 +43,46 @@ public class AppProps {
     private int spugTimeoutSeconds = 8;
     /** 开发模式：实名/学生/人脸走本地模拟通过；生产置 false 接三方实人认证 */
     private boolean mockIdentity = true;
+    /** 实名核验通道：mock（仅 GB11643 本地校验）/ aliyun（阿里云云市场身份证二要素） */
+    private String identityProvider = "mock";
+    /** 阿里云云市场二要素 AppCode（凭证，只放服务端，勿进前端/仓库） */
+    private String aliyunMarketAppcode = "";
+    /** 阿里云云市场二要素接口地址 */
+    private String aliyunMarketIdcheckUrl = "https://verifytwo.market.alicloudapi.com/identity/verify_id_name";
+    /** 实名核验调用超时（秒） */
+    private int realnameTimeoutSeconds = 8;
+
+    public String getIdentityProvider() {
+        return identityProvider;
+    }
+
+    public void setIdentityProvider(String identityProvider) {
+        this.identityProvider = identityProvider;
+    }
+
+    public String getAliyunMarketAppcode() {
+        return aliyunMarketAppcode;
+    }
+
+    public void setAliyunMarketAppcode(String aliyunMarketAppcode) {
+        this.aliyunMarketAppcode = aliyunMarketAppcode;
+    }
+
+    public String getAliyunMarketIdcheckUrl() {
+        return aliyunMarketIdcheckUrl;
+    }
+
+    public void setAliyunMarketIdcheckUrl(String aliyunMarketIdcheckUrl) {
+        this.aliyunMarketIdcheckUrl = aliyunMarketIdcheckUrl;
+    }
+
+    public int getRealnameTimeoutSeconds() {
+        return realnameTimeoutSeconds;
+    }
+
+    public void setRealnameTimeoutSeconds(int realnameTimeoutSeconds) {
+        this.realnameTimeoutSeconds = realnameTimeoutSeconds;
+    }
 
     public String getSmsProvider() {
         return smsProvider;

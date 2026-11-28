@@ -6,6 +6,7 @@ import com.textbook.loop.domain.SysUser;
 import com.textbook.loop.domain.SysVerifyRecord;
 import com.textbook.loop.mapper.SysUserMapper;
 import com.textbook.loop.mapper.SysVerifyRecordMapper;
+import com.textbook.loop.realname.RealNameProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -30,11 +31,14 @@ public class IdentityService {
     private final SysUserMapper userMapper;
     private final SysVerifyRecordMapper recordMapper;
     private final AppProps props;
+    private final RealNameProvider realNameProvider;
 
-    public IdentityService(SysUserMapper userMapper, SysVerifyRecordMapper recordMapper, AppProps props) {
+    public IdentityService(SysUserMapper userMapper, SysVerifyRecordMapper recordMapper, AppProps props,
+                           RealNameProvider realNameProvider) {
         this.userMapper = userMapper;
         this.recordMapper = recordMapper;
         this.props = props;
+        this.realNameProvider = realNameProvider;
     }
 
     /** 实名认证：身份证正反面 + 姓名/证号核验。 */
@@ -51,16 +55,11 @@ public class IdentityService {
             throw BizException.badRequest("请上传身份证正反面照片");
         }
         SysUser user = requireUser(userId);
-        boolean pass = true;
-        String result = props.isMockIdentity()
-                ? "MOCK 通过：格式校验成功（未调用三方）"
-                : "PROVIDER 未配置，默认拒绝";
-        if (!props.isMockIdentity()) {
-            pass = false;
-        }
-        record(userId, "ID_CARD", pass, idNo.substring(0, 4) + "****" + idNo.substring(14), result);
-        if (!pass) {
-            throw BizException.conflict("实名认证未通过，请核对信息后重试");
+        RealNameProvider.CheckResult check = realNameProvider.check(realName.trim(), idNo);
+        record(userId, "ID_CARD", check.passed(), idNo.substring(0, 4) + "****" + idNo.substring(14),
+                realNameProvider.name() + "：" + check.message());
+        if (!check.passed()) {
+            throw BizException.conflict("实名认证未通过：" + check.message());
         }
         user.setRealName(realName.trim());
         user.setIdNo(maskIdNo(idNo));

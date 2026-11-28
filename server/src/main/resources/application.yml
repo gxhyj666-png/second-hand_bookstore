@@ -2,6 +2,9 @@ server:
   port: 8088
 
 spring:
+  config:
+    # 实名核验凭证（AppCode）放本机私有文件；不存在也不报错，仓库里只留占位
+    import: optional:classpath:application-identity-local.yml
   application:
     name: textbook-loop
   profiles:
@@ -53,6 +56,11 @@ app:
   spug-base-url: ${APP_SPUG_BASE_URL:https://push.spug.cc}
   spug-timeout-seconds: 8
   mock-identity: ${APP_MOCK_IDENTITY:true}
+  # 实名核验通道：mock（GB11643 本地校验）| aliyun（阿里云云市场身份证二要素）
+  identity-provider: ${APP_IDENTITY_PROVIDER:mock}
+  aliyun-market-appcode: ${ALIYUN_MARKET_APPCODE:}
+  aliyun-market-idcheck-url: ${ALIYUN_MARKET_IDCHECK_URL:https://verifytwo.market.alicloudapi.com/identity/verify_id_name}
+  realname-timeout-seconds: 8
 
 logging:
   level:

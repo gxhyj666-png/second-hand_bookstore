@@ -240,8 +240,9 @@ second-hand_bookstore/
 
 - **短信通道可切真实供应商**：默认 `app.sms-provider=mock`（验证码不真发、随接口回传，冒烟脚本与离线演示用）；
   置 `spug` + `app.spug-template-code` 即接 **Spug 推送助手官方短信验证码模板**（一次 `POST /sms/<模板编码>`，
-  无需申请短信签名）。真实模式不再回传 `devCode`。身份证核验、人脸识别、ISBN 查询仍是 mock
-  （`app.mock-identity` 开关）。
+  无需申请短信签名）。真实模式不再回传 `devCode`。身份证核验同样可切真实通道：
+  `app.identity-provider=aliyun` + `app.aliyun-market-appcode`（阿里云云市场「身份证二要素」，AppCode 鉴权，
+  默认 mock 只做 GB11643 校验位）。人脸识别、ISBN 查询仍是 mock。
 - 推荐是规则召回（同课程 + 收藏共现），不是模型排序；数据量上来后可替换为 ItemCF。
 - 管理后台已默认直连真后端（`admin/.env` 的 `VITE_USE_MOCK=false`），mock 数据仅保留作离线预览备用。
 - 图片与视频上传落本地 `uploads/`（`app.upload-dir` 可改），生产建议换成对象存储；打包 APK 时须把
