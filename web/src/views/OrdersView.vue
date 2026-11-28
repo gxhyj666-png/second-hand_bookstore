@@ -10,6 +10,14 @@
     </header>
 
     <div class="container">
+      <van-search
+        v-model="keyword"
+        shape="round"
+        placeholder="搜订单号或教材名"
+        class="order-search"
+        @search="onSearch"
+        @clear="onSearch"
+      />
       <div class="status-row">
         <button
           v-for="s in STATUS_TABS"
@@ -54,6 +62,7 @@
             </div>
 
             <div v-if="role === 'buyer' && o.status === 'PENDING_PAY'" class="order-actions">
+              <span v-if="countdownOf(o)" class="countdown">剩余 {{ countdownOf(o) }} 付款</span>
               <van-button size="small" round plain @click.stop="cancel(o)">取消订单</van-button>
               <van-button size="small" round type="primary" @click.stop="pay(o)">去支付</van-button>
             </div>
@@ -81,7 +90,7 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { showConfirmDialog, showToast } from 'vant'
 import { listingApi, orderApi } from '@/api'
@@ -94,7 +103,7 @@ const STATUS_TABS = [
   { text: '全部', value: '' },
   { text: '待支付', value: 'PENDING_PAY' },
   { text: '待核销', value: 'WAIT_VERIFY' },
-  { text: '退款中', value: 'REFUNDING' },
+  { text: '售后', value: '__afterSale' },
   { text: '已完成', value: 'COMPLETED' }
 ]
 
@@ -102,6 +111,7 @@ const PAGE_SIZE = 10
 
 const role = ref('buyer')
 const status = ref('')
+const keyword = ref('')
 const orders = ref([])
 const page = ref(1)
 const loading = ref(false)
@@ -180,7 +190,9 @@ async function fetchPage(reset) {
   try {
     const res = await orderApi.list({
       role: role.value,
-      status: status.value || undefined,
+      status: status.value && status.value !== '__afterSale' ? status.value : undefined,
+      afterSale: status.value === '__afterSale' || undefined,
+      keyword: keyword.value.trim() || undefined,
       page: page.value,
       size: PAGE_SIZE
     })
@@ -231,6 +243,26 @@ function onStatusChange(value) {
   fetchPage(true)
 }
 
+function onSearch() {
+  orders.value = []
+  loadedOnce.value = false
+  fetchPage(true)
+}
+
+/** 待支付倒计时：后端 expireAt 为本地时间字符串，直接按本地时区解析 */
+const clock = ref(Date.now())
+let clockTimer = null
+
+function countdownOf(o) {
+  if (!o?.expireAt) return ''
+  const end = new Date(String(o.expireAt).replace(' ', 'T')).getTime()
+  const left = Math.max(0, Math.floor((end - clock.value) / 1000))
+  if (!left) return '已超时'
+  const m = Math.floor(left / 60)
+  const s = left % 60
+  return `${m}:${String(s).padStart(2, '0')}`
+}
+
 function goDetail(o) {
   router.push(`/order/${o.orderNo}`)
 }
@@ -273,12 +305,31 @@ async function cancel(o) {
   }
 }
 
-onMounted(() => fetchPage(true))
+onMounted(() => {
+  fetchPage(true)
+  clockTimer = setInterval(() => {
+    clock.value = Date.now()
+  }, 1000)
+})
+
+onUnmounted(() => {
+  if (clockTimer) clearInterval(clockTimer)
+  clockTimer = null
+})
 </script>
 
 <style scoped>
 .orders-page {
   background: var(--bg);
+}
+.order-search {
+  padding: 10px 0 4px;
+  background: transparent;
+}
+.countdown {
+  margin-right: auto;
+  font-size: 12px;
+  color: #e2703a;
 }
 .orders-head {
   background: #fff;

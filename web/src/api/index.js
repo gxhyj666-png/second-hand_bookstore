@@ -64,6 +64,7 @@ export const orderApi = {
   create: (data) => request.post('/v1/orders', data), // { listingId, pointId, requestId }
   list: (params) => request.get('/v1/orders', { params }), // { role: buyer|seller, status, page, size }
   detail: (orderNo) => request.get(`/v1/orders/${orderNo}`),
+  refunds: (orderNo) => request.get(`/v1/orders/${orderNo}/refunds`),
   pay: (orderNo, channel = 'MOCK') => request.post(`/v1/orders/${orderNo}/pay`, { channel }),
   cancel: (orderNo) => request.post(`/v1/orders/${orderNo}/cancel`),
   verifyCode: (orderNo) => request.get(`/v1/orders/${orderNo}/verify-code`),

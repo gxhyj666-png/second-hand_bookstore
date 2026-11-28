@@ -684,7 +684,23 @@ public class OrderService {
 
     // ------------------------------------------------------------------ 查询/定时
 
+    /** 售后相关状态（用于「售后」聚合筛选） */
+    public static final List<String> AFTER_SALE_STATUS = List.of("REFUNDING", "REFUND_AGREED", "ARBITRATING", "REFUNDED");
+
     public PageResult<BizOrders> list(Long userId, String role, String status, long page, long size) {
+        return list(userId, role, status, null, false, page, size);
+    }
+
+    /**
+     * 订单分页查询。
+     *
+     * @param keyword  订单号模糊或教材名模糊（都按「包含」匹配）
+     * @param afterSale 只看售后中的订单（REFUNDING / REFUND_AGREED / ARBITRATING / REFUNDED）
+     */
+    public PageResult<BizOrders> list(Long userId, String role, String status, String keyword,
+                                      boolean afterSale, long page, long size) {
+        long p = page <= 0 ? 1 : page;
+        long s = size <= 0 ? 10 : Math.min(size, 50);
         LambdaQueryWrapper<BizOrders> qw = new LambdaQueryWrapper<>();
         if ("seller".equalsIgnoreCase(role)) {
             qw.eq(BizOrders::getSellerId, userId);
@@ -693,10 +709,36 @@ public class OrderService {
         }
         if (status != null && !status.isBlank()) {
             qw.eq(BizOrders::getStatus, status.toUpperCase());
+        } else if (afterSale) {
+            qw.in(BizOrders::getStatus, AFTER_SALE_STATUS);
+        }
+        String kw = keyword == null ? "" : keyword.trim();
+        if (!kw.isEmpty()) {
+            List<Long> listingIds = listingMapper.selectList(new LambdaQueryWrapper<BizListing>()
+                            .select(BizListing::getId)
+                            .like(BizListing::getTitle, kw))
+                    .stream().map(BizListing::getId).toList();
+            qw.and(w -> {
+                w.like(BizOrders::getOrderNo, kw);
+                if (!listingIds.isEmpty()) {
+                    w.or().in(BizOrders::getListingId, listingIds);
+                }
+            });
         }
         qw.orderByDesc(BizOrders::getId);
-        Page<BizOrders> p = ordersMapper.selectPage(new Page<>(page, size), qw);
-        return new PageResult<>(p.getRecords(), p.getTotal(), page, size);
+        Page<BizOrders> pg = ordersMapper.selectPage(new Page<>(p, s), qw);
+        return new PageResult<>(pg.getRecords(), pg.getTotal(), p, s);
+    }
+
+    /** 订单的退货申请列表（买卖双方与管理员可看，按时间倒序） */
+    public List<BizRefund> refunds(String orderNo, Long userId) {
+        BizOrders order = byNo(orderNo);
+        if (!order.getBuyerId().equals(userId) && !order.getSellerId().equals(userId) && !isAdmin(userId)) {
+            throw BizException.forbidden("无权查看该订单");
+        }
+        return refundMapper.selectList(new LambdaQueryWrapper<BizRefund>()
+                .eq(BizRefund::getOrderId, order.getId())
+                .orderByDesc(BizRefund::getId));
     }
 
     public BizOrders detail(String orderNo, Long userId) {

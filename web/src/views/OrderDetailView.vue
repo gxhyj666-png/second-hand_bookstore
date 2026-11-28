@@ -27,6 +27,23 @@
           </div>
         </section>
 
+        <!-- 交易进度时间线 -->
+        <section class="card timeline-card">
+          <h2 class="card-title">交易进度</h2>
+          <ol class="timeline">
+            <li v-for="(s, i) in progressSteps" :key="i" class="tl-item" :class="s.state">
+              <span class="tl-dot" />
+              <div class="tl-body">
+                <div class="between">
+                  <strong>{{ s.title }}</strong>
+                  <span v-if="s.time" class="muted">{{ shortDate(s.time) }}</span>
+                </div>
+                <p v-if="s.desc" class="muted">{{ s.desc }}</p>
+              </div>
+            </li>
+          </ol>
+        </section>
+
         <!-- 买家核销码 -->
         <section v-if="showCode" class="card code-card">
           <p class="code-label">到店核销码</p>
@@ -598,6 +615,83 @@ async function loadMeets() {
   }
 }
 
+/** 退货/仲裁申请（后端 /v1/orders/{orderNo}/refunds），用于时间线与退款单号 */
+const refunds = ref([])
+
+async function loadRefunds() {
+  try {
+    const res = await orderApi.refunds(orderNo)
+    refunds.value = Array.isArray(res) ? res : res?.records || []
+  } catch {
+    refunds.value = []
+  }
+}
+
+const REFUND_STATUS_TEXT = {
+  PENDING: '等待卖家处理',
+  AGREED: '卖家已同意，等待买家确认退货',
+  REJECTED: '卖家已拒绝',
+  ARBITRATING: '平台介入中',
+  ARBITRATED: '平台已判定',
+  REFUNDED: '已退款'
+}
+
+const progressSteps = computed(() => {
+  const o = order.value
+  if (!o) return []
+  const steps = []
+  steps.push({
+    title: '下单',
+    time: o.createdAt,
+    desc: `订单金额 ${money(o.amount)}`,
+    state: 'done'
+  })
+  const paid = Boolean(o.paidAt) || ['WAIT_VERIFY', 'COMPLETED', 'REFUNDING', 'REFUND_AGREED', 'REFUNDED', 'ARBITRATING'].includes(o.status)
+  steps.push({
+    title: '支付',
+    time: o.paidAt,
+    desc: paid ? '货款由平台担保，核销后才结算给卖家' : o.status === 'PENDING_PAY' ? '待支付，超时自动关闭' : '',
+    state: paid ? 'done' : o.status === 'PENDING_PAY' ? 'active' : 'todo'
+  })
+  steps.push({
+    title: '约定见面',
+    time: o.meetTime,
+    desc: o.meetPlace ? `地点：${o.meetPlace}` : '买卖双方在私信里约定时间地点',
+    state: o.meetTime ? 'done' : paid ? 'active' : 'todo'
+  })
+  steps.push({
+    title: '当面核销',
+    time: o.signAt || o.completedAt,
+    desc: o.signPhotoUrl ? '卖家已上传签到照片，交易完成' : '卖家输入 6 位核销码并上传签到照',
+    state: o.completedAt || o.signAt ? 'done' : o.status === 'WAIT_VERIFY' ? 'active' : 'todo'
+  })
+
+  const latest = refunds.value[0]
+  if (latest || ['REFUNDING', 'REFUND_AGREED', 'REFUNDED', 'ARBITRATING'].includes(o.status)) {
+    const status = latest?.status || o.status
+    steps.push({
+      title: '售后退款',
+      time: latest?.createdAt,
+      desc: [REFUND_STATUS_TEXT[status] || status, latest?.reason ? `原因：${latest.reason}` : '']
+        .filter(Boolean)
+        .join(' · '),
+      state: ['REFUNDED', 'ARBITRATED', 'REJECTED'].includes(status) ? 'done' : 'active'
+    })
+    if (latest?.decidedAt || latest?.refundedAt) {
+      steps.push({
+        title: latest.platformVerdict === 'SELLER_FAULT' ? '平台判定：卖家责任，强制退款' : '售后处理完成',
+        time: latest.refundedAt || latest.decidedAt,
+        desc: latest.platformRemark || '',
+        state: 'done'
+      })
+    }
+  }
+  if (o.status === 'CLOSED') {
+    steps.push({ title: '订单关闭', time: o.closedAt, desc: o.closeType || '', state: 'todo' })
+  }
+  return steps
+})
+
 function restoreRefundId() {
   let saved = ''
   try {
@@ -605,7 +699,9 @@ function restoreRefundId() {
   } catch {
     saved = ''
   }
-  refundId.value = String(order.value?.refundId || order.value?.refund?.id || saved || '')
+  refundId.value = String(
+    order.value?.refundId || order.value?.refund?.id || refunds.value[0]?.id || saved || ''
+  )
   manualRefundId.value = refundId.value
 }
 
@@ -615,6 +711,7 @@ async function load() {
   clearTimer()
   try {
     order.value = await orderApi.detail(orderNo)
+    await loadRefunds()
     restoreRefundId()
     await Promise.all([loadExtras(), loadMeets()])
     if (showCode.value) loadCode()
@@ -977,6 +1074,57 @@ onBeforeUnmount(() => {
 .order-detail-page {
   background: var(--bg);
   padding-bottom: 96px;
+}
+.timeline-card {
+  margin-top: 12px;
+}
+.timeline {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0 0 0 4px;
+}
+.tl-item {
+  position: relative;
+  display: flex;
+  gap: 10px;
+  padding: 0 0 14px 14px;
+  border-left: 2px solid var(--line);
+}
+.tl-item:last-child {
+  border-left-color: transparent;
+  padding-bottom: 0;
+}
+.tl-dot {
+  position: absolute;
+  left: -6px;
+  top: 3px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #c9d3e0;
+}
+.tl-item.done .tl-dot {
+  background: var(--brand);
+}
+.tl-item.active .tl-dot {
+  background: #e2703a;
+  box-shadow: 0 0 0 4px rgba(226, 112, 58, 0.16);
+}
+.tl-body {
+  flex: 1;
+  min-width: 0;
+}
+.tl-body strong {
+  font-size: 14px;
+}
+.tl-item.todo .tl-body strong,
+.tl-item.todo .muted {
+  color: #a4aebb;
+}
+.tl-body p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
 }
 .loading-wrap {
   padding-top: 14px;

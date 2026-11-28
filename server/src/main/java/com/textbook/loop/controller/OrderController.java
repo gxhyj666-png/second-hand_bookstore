@@ -61,14 +61,23 @@ public class OrderController {
     @GetMapping
     public ApiResponse<PageResult<BizOrders>> list(@RequestParam(defaultValue = "buyer") String role,
                                                    @RequestParam(required = false) String status,
+                                                   @RequestParam(required = false) String keyword,
+                                                   @RequestParam(defaultValue = "false") boolean afterSale,
                                                    @RequestParam(defaultValue = "1") long page,
                                                    @RequestParam(defaultValue = "10") long size) {
-        return ApiResponse.ok(orderService.list(UserContext.requireUserId(), role, status, page, size));
+        return ApiResponse.ok(orderService.list(UserContext.requireUserId(), role, status, keyword,
+                afterSale, page, size));
     }
 
     @GetMapping("/{orderNo}")
     public ApiResponse<BizOrders> detail(@PathVariable String orderNo) {
         return ApiResponse.ok(orderService.detail(orderNo, UserContext.requireUserId()));
+    }
+
+    /** 该订单的退货/仲裁申请（详情页时间线与售后操作需要） */
+    @GetMapping("/{orderNo}/refunds")
+    public ApiResponse<java.util.List<BizRefund>> refunds(@PathVariable String orderNo) {
+        return ApiResponse.ok(orderService.refunds(orderNo, UserContext.requireUserId()));
     }
 
     @PostMapping("/{orderNo}/pay")
