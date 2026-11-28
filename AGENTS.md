@@ -146,6 +146,12 @@ python tools/md2docx.py
 - **先读后写**：动任何接口前先看对应 `controller` + `service`，别按记忆猜字段名（实体是生成物，以 `db/schema.sql` 为准）。
 - **改表流程**：`db/schema.sql` → `node tools/gen-entities.js` → `node tools/gen-h2-schema.js` → 删本地 `data/` → 重启。
 - **验证要求**：改后端必须 `.\mvnw.cmd -q -DskipTests compile` 通过；改接口必须跑 `smoke.ps1` / `e2e-trade.ps1`；改前端必须 `pnpm build` 通过。**不许说"应该能跑"**。
+- **前端每个可点元素都必须有响应**（硬规则，2026-11-28 起）：开发过程中，页面上**每一个按钮、超链接、可点卡片/图标/单元格**都必须绑定点击行为并真的产生结果（跳页、弹层/抽屉、发起请求、Toast/确认框），**禁止留"占位按钮"或点了没反应的死链接**。
+  - 新增交互三选一：①跳路由（`router.push`，目标路径必须在 `web/src/router/index.js` / `admin/src/router/index.js` 里存在）②弹层（`showDialog` / `van-popup` / `el-dialog`，必须能关闭）③调接口（成功与失败都要有反馈：Toast / `ElMessage` / 空态）。
+  - 只做展示的元素**不要**写成按钮外观（用 `<span>`/`<div class="tag">`），避免用户误以为可点。
+  - 提交前端改动前必须跑 `node tools/check-clicks.mjs`，**必须以"0 个问题"通过**；它静态扫描 `web/src`、`admin/src` 下所有 `.vue`，报告三类问题：A 按钮/链接没有任何点击绑定、B `@click` 调用了未定义的函数、C `router.push` 指向不存在的路由（当前基线：56 个 `.vue` / 208 个可点元素 / 0 问题）。
+  - 改了页面结构或路由后，还要跑一次实机检查（后端 8088 + 前端 dev server 在跑）：`node tools/check-clicks.mjs --live`（默认查 web 5174）与 `node tools/check-clicks.mjs --live --app=admin --url=http://localhost:5173`。它会用无头 Edge 逐条打开路由表里的路径，报告**白屏 / 控制台异常 / 已登录却被踢回登录页**；当前基线：web 28 条、admin 13 条全部正常。
+  - 关键流程（登录、下单、支付、核销、退款、商户上下架、运营兑换）的按钮，除静态检查外还要用无头 Edge 真的点一遍并读 DOM 结果：点完必须读一个可核对的结果（`.van-toast` 文案 / `location.hash` / 列表条数 / 状态标签），不能只看"页面能打开"。登录和页面地址可用 `--account` / `--password` / `--url` 指定。2026-11-28 实测通过：订单页「售后」筛选（5→4 张卡）、我的发布「下架」确认弹窗 + Toast「已下架」、商户工作台指标格跳 `/merchant/orders`、查看店铺主页跳 `/shop/1`、商户底部导航 5 个 tab 跳结算页，全程 0 控制台异常。
 - **提交**：一个主题一次提交，中文说明写清"做了什么/为什么"；`git add` 具体路径，别 `git add -A` 扫进 `.vite`、`dist`、`data`。
 - **凭证**：Spug 模板编码、JWT 密钥、数据库密码一律不进仓库（`**/application-*-local.yml` 已忽略）。
 - **不确定就问**：涉及产品口径（要不要小程序、要不要接支付）先问，不擅自扩展范围。
